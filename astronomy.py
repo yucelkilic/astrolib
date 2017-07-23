@@ -5,10 +5,7 @@ from astropy import units as u
 from astropy.wcs import WCS
 from astropy.io import fits
 from astropy.time import Time
-
-from matplotlib.patches import Ellipse
-import matplotlib.pyplot as plt
-from matplotlib import rcParams
+from astropy.table import Table
 
 from datetime import datetime
 from datetime import timedelta
@@ -16,7 +13,6 @@ from datetime import timedelta
 import math
 from os import path, system
 import numpy as np
-from scipy import stats
 
 import sep
 
@@ -336,12 +332,12 @@ class AstCalc:
                 A_x,
                 y,
                 file_path))
-            coors = genfromtxt('{0}/coors'.format(file_path),
-                               comments='#',
-                               invalid_raise=False,
-                               delimiter=None,
-                               usecols=(0, 1),
-                               dtype="U")
+            coors = np.genfromtxt('{0}/coors'.format(file_path),
+                                  comments='#',
+                                  invalid_raise=False,
+                                  delimiter=None,
+                                  usecols=(0, 1),
+                                  dtype="U")
 
             system("rm -rf {0}/coors".format(file_path))
 
@@ -442,11 +438,11 @@ class AstCalc:
         except Exception as e:
             print(e)
 
-    def std2equ(ra0, dec0, xx, yy):
+    def std2equ(self, ra0, dec0, xx, yy):
 
         ra = ra0 + math.atan(xx /
                              (math.cos(dec0) -
-                              (yy * sin(dec0))))
+                              (yy * math.sin(dec0))))
 
         dec = math.asin((math.sin(dec0) + (yy * math.cos(dec0))) /
                         math.sqrt(1 + math.pow(xx, 2) +
@@ -454,27 +450,27 @@ class AstCalc:
 
         return(ra, dec)
 
-    def equ2std(ra0, dec0, ra, dec):
+    def equ2std(self, ra0, dec0, ra, dec):
 
-        xx = ((math.cos(dec) * math.sin(ra - ra0)) /
+        xx = (-(math.cos(dec) * math.sin(ra - ra0)) /
               (math.cos(dec0) * math.cos(dec) * math.cos(ra - ra0) +
                math.sin(dec0) * math.sin(dec)))
 
-        yy = ((math.sin(dec0) * math.cos(dec) * math.cos(ra - ra0) -
-               math.cos(dec0) * math.sin(dec)) /
+        yy = (-(math.sin(dec0) * math.cos(dec) * math.cos(ra - ra0) -
+                math.cos(dec0) * math.sin(dec)) /
               (math.cos(dec0) * math.cos(dec) * math.cos(ra - ra0) +
                math.sin(dec0) * math.sin(dec)))
 
         return(xx, yy)
 
-    def plate_constants(self, file_name, objects_matrix):
+    def plate_constants(self, ra_center, dec_center,
+                        objects_matrix, target_xy):
         x_xy = []
         b_xx = []
         b_yy = []
         
-        pc = self.center_finder(file_name, wcs_ref=True)
-        ra0 = pc[0].radian
-        dec0 = pc[1].radian
+        ra0 = ra_center
+        dec0 = dec_center
 
         for m_object in objects_matrix:
             ra = math.radians(m_object[3])
@@ -485,9 +481,78 @@ class AstCalc:
 
         A_x = np.linalg.lstsq(np.array(x_xy), np.asarray(b_xx))[0]
         A_y = np.linalg.lstsq(np.array(x_xy), np.asarray(b_yy))[0]
+
+        a, b, c = A_x
+        d, e, f = A_y
+
+        coor_list = []
+
+        for s_object in objects_matrix:
+            xx = a * s_object[1] + b * s_object[2] + c
+            yy = f * s_object[1] + e * s_object[2] + f
+
+            ra, dec = self.std2equ(ra0, dec0, xx, yy)
+ 
+            d_ra = ((ra - math.radians(s_object[3])) *
+                    math.cos(math.radians(s_object[4])))
+            d_dec = (dec - math.radians(s_object[4]))
+
+            delta = 3600.0 * math.sqrt(math.pow(d_ra, 2) +
+                                       math.pow(d_dec, 2))
+
+            coor_list.append([s_object[0],
+                              s_object[1],
+                              s_object[2],
+                              s_object[3],
+                              s_object[4],
+                              math.degrees(ra),
+                              math.degrees(dec),
+                              math.degrees(d_ra) * 3600.0,
+                              math.degrees(d_dec) * 3600.0,
+                              delta,
+                              (s_object[3] - math.degrees(ra)),
+                              (s_object[4] - math.degrees(dec))])
+
+        for i, xy in enumerate(target_xy):
+            xx = a * xy[0] + b * xy[1] + c
+            yy = f * xy[0] + e * xy[1] + f
+
+            ra, dec = self.std2equ(ra0, dec0, xx, yy)
+
+            coor_list.append([i,
+                              xy[0],
+                              xy[1],
+                              None,
+                              None,
+                              math.degrees(ra),
+                              math.degrees(dec),
+                              None,
+                              None,
+                              None,
+                              None,
+                              None])
+
+        results = np.array(coor_list, dtype=np.float)
+        # results = results[np.isnan(results)] = 0
         
-        return(A_x[0], A_x[1], A_x[2],
-               A_y[0], A_y[1], A_y[2])
+        rms_ra = np.sqrt(np.mean(np.power(results[:, 7], 2)))
+        rms_dec = np.sqrt(np.mean(np.power(results[:, 8], 2)))
+        rms_delta = np.sqrt(np.mean(np.power(results[:, 9], 2)))
+
+        tb_results = Table(results, names=('ID',
+                                           'PHY_X',
+                                           'PHY_Y',
+                                           'RA',
+                                           'DEC',
+                                           'CALC_RA',
+                                           'CALC_DEC',
+                                           'ERROR_RA',
+                                           'ERROR_DEC',
+                                           'ERROR',
+                                           'GAIA-C_RA',
+                                           'GAIA-C_DEC'))
+
+        return(tb_results['RA', 'DEC', 'CALC_RA', 'CALC_DEC'], rms_ra, rms_dec, rms_delta)
 
 
 class TimeOps:
