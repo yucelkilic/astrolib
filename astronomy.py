@@ -98,18 +98,24 @@ NET {6}""".format(code, observer, observer, tel,
 
         if skycoords:
             xy2sky2_ops = AstCalc()
-            objects_radec = []
+            objects_ra = []
+            objects_dec = []
             for j in range(len(objects)):
                 objects_sky = xy2sky2_ops.xy2sky2(self.file_name,
                                                   objects['x'][j],
                                                   objects['y'][j])
-                objects_radec.append(objects_sky)
+                objects_ra.append(objects_sky.ra.degree)
+                objects_dec.append(objects_sky.dec.degree)
                 
             print("{0} objects detected.".format(len(objects)))
-            return(objects_radec, objects)
+            col_ra_calc = Table.Column(name='ra_calc', data=objects_ra)
+            col_dec_calc = Table.Column(name='dec_calc', data=objects_dec)
+            tobjects = Table(objects)
+            tobjects.add_columns([col_ra_calc, col_dec_calc])
+            return(tobjects)
         else:
             print("{0} objects detected.".format(len(objects)))
-            return(objects)
+            return(Table(objects))
 
 
 class AstCalc:
@@ -440,7 +446,7 @@ class AstCalc:
 
     def std2equ(self, ra0, dec0, xx, yy):
 
-        ra = ra0 + math.atan(xx /
+        ra = ra0 + math.atan(-xx /
                              (math.cos(dec0) -
                               (yy * math.sin(dec0))))
 
@@ -539,20 +545,26 @@ class AstCalc:
         rms_dec = np.sqrt(np.mean(np.power(results[:, 8], 2)))
         rms_delta = np.sqrt(np.mean(np.power(results[:, 9], 2)))
 
-        tb_results = Table(results, names=('ID',
-                                           'PHY_X',
-                                           'PHY_Y',
-                                           'RA',
-                                           'DEC',
-                                           'CALC_RA',
-                                           'CALC_DEC',
-                                           'ERROR_RA',
-                                           'ERROR_DEC',
-                                           'ERROR',
-                                           'GAIA-C_RA',
-                                           'GAIA-C_DEC'))
+        tb_results = Table(results, names=('id',
+                                           'x',
+                                           'y',
+                                           'ra',
+                                           'dec',
+                                           'c_ra',
+                                           'c_dec',
+                                           'e_c_ra',
+                                           'e_c_dec',
+                                           'error',
+                                           'diff_ra',
+                                           'diff_dec'))
 
-        return(tb_results['RA', 'DEC', 'CALC_RA', 'CALC_DEC'], rms_ra, rms_dec, rms_delta)
+        return(tb_results['ra',
+                          'dec',
+                          'c_ra',
+                          'c_dec'],
+               rms_ra,
+               rms_dec,
+               rms_delta)
 
 
 class TimeOps:
