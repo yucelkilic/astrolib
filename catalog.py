@@ -15,10 +15,15 @@ class Query:
         """
         Query Gaia DR1 @ VizieR using astroquery.vizier
         parameters: ra_deg, dec_deg, rad_deg: RA, Dec, field
-        radius in degrees
-        max_mag: upper limit G magnitude (optional)
-        max_sources: maximum number of sources
-        returns: astropy.table object
+        @param ra_deg: RA in degrees
+        @type ra_dec: float
+        @param dec_deg: DEC in degrees
+        @type dec_deg: float
+        @param max_mag: Limit G magnitude to be queried object(s)
+        @type max_mag: float
+        @max_sources: Maximum number of sources
+        @type max_sources: int
+        @returns: astropy.table object
         """
 
         vquery = Vizier(columns=['Source', 'RA_ICRS',
@@ -38,10 +43,26 @@ class Query:
                                    width="{:f}d".format(rad_deg),
                                    catalog="I/337/gaia")[0])
 
-    def match_catalog(self, file_name, radius=0.005, max_mag=20,
-                      max_obj=30, plot=False):
-        fo = FitsOps("108hecuba-001_R_affineremap.new")
-        ds = fo.detect_sources(skycoords=True, max_obj=30)
+    def match_catalog(self, file_name, radius=0.002, max_mag=20,
+                      max_sources=30, plot=False):
+
+        """
+        Match detect sources with Gaia catalogue.
+        @param file_name: FITS image path to be search.
+        @type file_name: path
+        @param radius: Radiys confirmation circle [in degrees]
+        @type radius: float
+        @param max_mag: Limit G magnitude to be queried object(s)
+        @type max_mag: float
+        @max_sources: Maximum number of sources
+        @type max_sources: int
+        @param plot: Plot detected objects?
+        @type plot: boolean
+        @returns: astropy.table object
+        """
+
+        fo = FitsOps(file_name)
+        ds = fo.detect_sources(skycoords=True, max_sources=max_sources)
 
         qry = Query()
         gaia_list = []
@@ -71,18 +92,18 @@ class Query:
                                   ds['a'][i],
                                   ds['b'][i],
                                   ds['theta'][i],
-                                  ds['wcs_ra'][i],
-                                  ds['wcs_dec'][i],
+                                  ds['ra_calc'][i],
+                                  ds['dec_calc'][i],
                                   (gaia_obj[0][1] -
-                                   ds['wcs_ra'][i]) * 3600000,
+                                   ds['ra_calc'][i]) * 3600000,
                                   (gaia_obj[0][2] -
-                                   ds['wcs_dec'][i]) * 3600000])
+                                   ds['dec_calc'][i]) * 3600000])
 
             except:
                 pass
 
         gaia_matched = np.asarray(gaia_list)
-
+        
         if plot:
             data = fo.hdu[0].data.astype(float)
             bkg = sep.Background(data)
@@ -110,8 +131,8 @@ class Query:
                                                    'a',
                                                    'b',
                                                    'theta',
-                                                   'wcs_ra',
-                                                   'wcs_calc',
+                                                   'ra_calc',
+                                                   'dec_calc',
                                                    'ra_diff',
                                                    'dec_diff'))
         

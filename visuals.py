@@ -9,6 +9,18 @@ class StarPlot:
 
     def star_plot(self, image_data, objects, mark_color="red"):
 
+        """
+        Source plot module.
+        @param image_data: data part of the FITS image
+        @type image_data: numpy array
+        @param objects: Return of the detect_sources
+        function with skycoords.
+        @type objects: astropy.table
+        @param mark_color: Color of the plot marks
+        @type mark_color: str
+        @returns: boolean
+        """
+
         rcParams['figure.figsize'] = [10., 8.]
         
         # plot background-subtracted image

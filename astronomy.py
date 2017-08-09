@@ -5,13 +5,15 @@ from astropy import units as u
 from astropy.wcs import WCS
 from astropy.io import fits
 from astropy.time import Time
-from astropy.table import Table
+from astropy.table import Table, Column
+
+from pyraf import iraf
 
 from datetime import datetime
 from datetime import timedelta
 
 import math
-from os import path, system
+from os import path, system, getcwd
 import numpy as np
 
 import sep
@@ -74,7 +76,18 @@ NET {6}""".format(code, observer, observer, tel,
         except Exception as e:
             print(e)
 
-    def detect_sources(self, plot=False, skycoords=False, max_obj=50):
+    def detect_sources(self, plot=False, skycoords=False, max_sources=50):
+
+        """
+        It detects sources on FITS image with sep module.
+        @param plot
+        @type plot: boolean
+        @param skycoords: Calculate sky coordinates of sources.
+        @type skycoords: boolean
+        @param max_sources: Maximum detection limit.
+        @type max_sources: int
+        @return: astropy.table
+        """
 
         data = self.hdu[0].data.astype(float)
         bkg = sep.Background(data)
@@ -84,12 +97,12 @@ NET {6}""".format(code, observer, observer, tel,
         all_objects = sep.extract(data_sub, 1.5, err=bkg.globalrms)
         ord_objects = np.sort(all_objects, order=['flux'])
 
-        if len(ord_objects) <= max_obj:
-            max_obj = len(ord_objects)
-            objects = ord_objects[::-1][:max_obj]
-        if len(ord_objects) > max_obj:
-            objects = ord_objects[::-1][:max_obj]
-        elif not max_obj:
+        if len(ord_objects) <= max_sources:
+            max_sources = len(ord_objects)
+            objects = ord_objects[::-1][:max_sources]
+        if len(ord_objects) > max_sources:
+            objects = ord_objects[::-1][:max_sources]
+        elif not max_sources:
             objects = ord_objects[::-1]
 
         if plot:
@@ -137,7 +150,7 @@ class AstCalc:
         @param max_dist: Max distance limit in arcsec.
         @type max_dist: integer
         @param min_dist: Max distance limit in arcsec.
-        @type min_dist: integer
+        @type min_dist: int
         @return: boolean
         """
 
@@ -446,6 +459,20 @@ class AstCalc:
 
     def std2equ(self, ra0, dec0, xx, yy):
 
+        """
+        Calculation of equatorial coordinates from
+        standard coordinates used in astrographic plate measurement
+        @param ra0: Right ascension of optical axis [rad]
+        @type ra0: float
+        @param dec0: Declination of optical axis [rad]
+        @type dec0: float
+        @param xx: Standard coordinate of X
+        @type xx: float
+        @param yy: Standard coordinate of Y
+        @type yy: float
+        @return: Tuple, ra, dec in [rad]
+        """
+
         ra = ra0 + math.atan(-xx /
                              (math.cos(dec0) -
                               (yy * math.sin(dec0))))
@@ -458,6 +485,18 @@ class AstCalc:
 
     def equ2std(self, ra0, dec0, ra, dec):
 
+        """
+        Calculation of standard coordinates from equatorial coordinates
+        @param ra0: Right ascension of optical axis [rad]
+        @type ra0: float
+        @param dec0: Declination of optical axis [rad]
+        @type dec0: float
+        @param ra: Right ascension [rad]
+        @type ra: float
+        @param dec: Declination
+        @type dec: float
+        @return: Tuple, xx, yy
+        """
         xx = (-(math.cos(dec) * math.sin(ra - ra0)) /
               (math.cos(dec0) * math.cos(dec) * math.cos(ra - ra0) +
                math.sin(dec0) * math.sin(dec)))
@@ -471,6 +510,21 @@ class AstCalc:
 
     def plate_constants(self, ra_center, dec_center,
                         objects_matrix, target_xy):
+
+        """
+        Astrometric analysis of photographic plates.
+        Add a data equation of form Ax=b to a least squares problem
+        @param ra_center: RA coordinate of center of optical axis [rad]
+        @type ra_center: float
+        @param dec_center: DEC coordinate of center of optical axis [rad]
+        @type dec_center: float
+        @param objects_matrix: Return of the detect_sources
+        function with skycoords.
+        @type objects_matrix: astropy.table
+        @param target_xy: Physical coordinates to be converted to Skycoord.
+        @type target_xy: list
+        @return: astropy.table
+        """
         x_xy = []
         b_xx = []
         b_yy = []
@@ -558,15 +612,60 @@ class AstCalc:
                                            'diff_ra',
                                            'diff_dec'))
 
-        return(tb_results['ra',
-                          'dec',
-                          'c_ra',
-                          'c_dec'],
+        return(tb_results,
                rms_ra,
                rms_dec,
                rms_delta)
 
+    def ccmap(self, objects_matrix, image_path):
 
+        """
+        Compute plate solutions using
+        matched pixel and celestial coordinate lists.
+        @param objects_matrix: Return of the match_catalog function
+        in catalog module.
+        @type objects_matrix: astropy.table
+        @param image_path: FITS image without WCS keywords.
+        @type image_path: path
+        @return: boolean, FITS image with WCS solutions
+        """
+
+        c = coordinates.SkyCoord(objects_matrix['ra'] * u.deg,
+                                 objects_matrix['dec'] * u.deg, frame='icrs')
+        rd = c.to_string('hmsdms', sep=":", precision=5)
+        radec = np.reshape(rd, (-1, 1))
+
+        iraf.digiphot(_doprint=0)
+        iraf.daophot(_doprint=0)
+
+        ra_dec = Column(name='ra_dec', data=radec[:, 0])
+        x_y = Table(objects_matrix['x', 'y'])
+
+        x_y.add_column(ra_dec, 0)
+        np.savetxt("{0}/coords".format(getcwd()), x_y, fmt='%s')
+
+        
+
+        # InputCooList should have the following columns
+        SolutionsList = "{0}/solutions.txt".format(getcwd())
+
+        iraf.ccmap.setParam('images', image_path)
+        iraf.ccmap.setParam('input', "{0}/coords".format(getcwd()))
+        iraf.ccmap.setParam('database', SolutionsList)
+        iraf.ccmap.setParam('lngcolumn', 1)
+        iraf.ccmap.setParam('latcolumn', 2)
+        iraf.ccmap.setParam('xcolumn', 3)
+        iraf.ccmap.setParam('ycolumn', 4)
+        iraf.ccmap.setParam('results', 'STDOUT')
+        iraf.ccmap.setParam('refsystem', 'icrs')
+        iraf.ccmap.setParam('insystem', 'icrs')
+        iraf.ccmap.setParam('update', 'yes')
+        iraf.ccmap(interactive='no')
+
+        system("rm -rf {0}/coords".format(getcwd()))
+        return(True)
+
+    
 class TimeOps:
 
     def time_stamp(self):
