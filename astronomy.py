@@ -617,7 +617,7 @@ class AstCalc:
                rms_dec,
                rms_delta)
 
-    def ccmap(self, objects_matrix, image_path):
+    def ccmap(self, objects_matrix, image_path, stdout=False):
 
         """
         Compute plate solutions using
@@ -627,6 +627,8 @@ class AstCalc:
         @type objects_matrix: astropy.table
         @param image_path: FITS image without WCS keywords.
         @type image_path: path
+        @param stdout: Print result as a STDOUT?
+        @type stdout: boolean
         @return: boolean, FITS image with WCS solutions
         """
 
@@ -644,8 +646,6 @@ class AstCalc:
         x_y.add_column(ra_dec, 0)
         np.savetxt("{0}/coords".format(getcwd()), x_y, fmt='%s')
 
-        
-
         # InputCooList should have the following columns
         SolutionsList = "{0}/solutions.txt".format(getcwd())
 
@@ -656,16 +656,86 @@ class AstCalc:
         iraf.ccmap.setParam('latcolumn', 2)
         iraf.ccmap.setParam('xcolumn', 3)
         iraf.ccmap.setParam('ycolumn', 4)
-        iraf.ccmap.setParam('results', 'STDOUT')
+        iraf.ccmap.setParam('results', "{0}/results".format(getcwd()))
         iraf.ccmap.setParam('refsystem', 'icrs')
         iraf.ccmap.setParam('insystem', 'icrs')
         iraf.ccmap.setParam('update', 'yes')
         iraf.ccmap(interactive='no')
 
         system("rm -rf {0}/coords".format(getcwd()))
-        return(True)
 
-    
+        return_list = []
+        
+        with open("{0}/results".format(getcwd())) as f:
+
+            for line in f:
+                if "Ra/Dec or Long/Lat fit rms:" in line:
+                    rms_ra_dec = line.split()
+                    rms_ra = rms_ra_dec[6]
+                    rms_dec = rms_ra_dec[7]
+                    return_list.append([rms_ra,
+                                        rms_dec,
+                                        "(arcsec  arcsec)"])
+
+                if "(hours  degrees)" in line:
+                    ref_point = line.split()
+                    ref_point_ra = ref_point[3]
+                    ref_point_dec = ref_point[4]
+                    return_list.append([ref_point_ra,
+                                        ref_point_dec,
+                                        "(hours  degrees)"])
+                if "(pixels  pixels)" in line:
+                    ref_point = line.split()
+                    ref_point_x = ref_point[3]
+                    ref_point_y = ref_point[4]
+                    return_list.append([ref_point_x,
+                                        ref_point_y,
+                                        "(pixels  pixels)"])
+                if "X and Y scale:" in line:
+                    pix_scale = line.split()
+                    pix_scale_x = pix_scale[5]
+                    pix_scale_y = pix_scale[6]
+                    return_list.append([pix_scale_x,
+                                        pix_scale_y,
+                                        "(arcsec/pixel  arcsec/pixel)"])
+                if "X and Y axis rotation:" in line:
+                    axis_rotation = line.split()
+                    axis_rotation_x = axis_rotation[6]
+                    axis_rotation_y = axis_rotation[7]
+                    return_list.append([axis_rotation_x,
+                                        axis_rotation_y,
+                                        "(degrees  degrees)"])
+                if "Ra/Dec or Long/Lat wcs rms:" in line:
+                    rms_ra_dec_wcs = line.split()
+                    rms_ra_wcs = rms_ra_dec_wcs[6]
+                    rms_dec_wcs = rms_ra_dec_wcs[7]
+                    return_list.append([rms_ra_wcs,
+                                        rms_dec_wcs,
+                                        "(arcsec  arcsec)"])
+        f.close()
+
+        ccmap_result = Table(return_list,
+                             names=("Ra/Dec or Long/Lat fit rms",
+                                    "Reference point (RA, DEC)",
+                                    "Reference point (X, Y)",
+                                    "X and Y scale",
+                                    "X and Y axis rotation",
+                                    "Ra/Dec or Long/Lat wcs rms"))
+
+        if stdout:
+            with open("{0}/results".format(getcwd())) as f:
+                results = f.read()
+                print(results)
+            f.close()
+
+        return(ccmap_result["Ra/Dec or Long/Lat fit rms",
+                            "Ra/Dec or Long/Lat wcs rms",
+                            "Reference point (RA, DEC)",
+                            "Reference point (X, Y)",
+                            "X and Y scale",
+                            "X and Y axis rotation"])
+
+
 class TimeOps:
 
     def time_stamp(self):
