@@ -31,7 +31,7 @@ class Query:
                                  'e_DE_ICRS', 'phot_g_mean_mag',
                                  'pmRA', 'pmDE',
                                  'e_pmRA', 'e_pmDE',
-                                 'Epoch'],
+                                 'Epoch', 'Plx'],
                         column_filters={"phot_g_mean_mag":
                                         ("<{:f}".format(max_mag))},
                         row_limit=max_sources)
@@ -88,6 +88,7 @@ class Query:
                                   gaia_obj[0][8],
                                   gaia_obj[0][9],
                                   gaia_obj[0][10],
+                                  gaia_obj[0][11],
                                   ds['flux'][i],
                                   ds['a'][i],
                                   ds['b'][i],
@@ -127,6 +128,7 @@ class Query:
                                                    'e_pmra',
                                                    'e_pmdec',
                                                    'epoch',
+                                                   'plx',
                                                    'flux',
                                                    'a',
                                                    'b',

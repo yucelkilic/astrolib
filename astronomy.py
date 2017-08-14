@@ -5,6 +5,7 @@ from astropy import units as u
 from astropy.wcs import WCS
 from astropy.io import fits
 from astropy.time import Time
+from astropy.coordinates import get_body_barycentric
 from astropy.table import Table, Column
 
 from pyraf import iraf
@@ -617,7 +618,9 @@ class AstCalc:
                rms_dec,
                rms_delta)
 
-    def ccmap(self, objects_matrix, image_path, stdout=False):
+    def ccmap(self, objects_matrix, image_path,
+              ppm_parallax_cor=True,
+              stdout=False):
 
         """
         Compute plate solutions using
@@ -627,13 +630,66 @@ class AstCalc:
         @type objects_matrix: astropy.table
         @param image_path: FITS image without WCS keywords.
         @type image_path: path
+        @param ppm_parallax_cor: Apply proper motion
+        and stellar parallax correction?
+        @type ppm_parallax_cor: boolean
         @param stdout: Print result as a STDOUT?
         @type stdout: boolean
         @return: boolean, FITS image with WCS solutions
         """
 
-        c = coordinates.SkyCoord(objects_matrix['ra'] * u.deg,
-                                 objects_matrix['dec'] * u.deg, frame='icrs')
+        remove_nan = objects_matrix['x',
+                                    'y',
+                                    'ra',
+                                    'dec',
+                                    'plx',
+                                    'pmra',
+                                    'pmdec']
+
+        remove_nan = Table(remove_nan, masked=True)
+        for col in remove_nan.columns.values():
+            col.mask = np.isnan(col)
+            col.fill_value = 0.0
+
+        trimmed_om = remove_nan.filled()
+        
+        del objects_matrix
+        del remove_nan
+
+        if ppm_parallax_cor:
+            corrected_coords = []
+            fo = FitsOps(image_path)
+            odate = fo.get_header("date-obs")
+
+            for i in range(len(trimmed_om)):
+                ra_plx, dec_plx = self.stellar_parallax_cor(
+                    (trimmed_om['plx'][i] / 1000),
+                    trimmed_om['ra'][i],
+                    trimmed_om['dec'][i],
+                    odate)
+
+                cra_ppm, cdec_ppm = self.ppm_cor(trimmed_om['ra'][i],
+                                                 trimmed_om['dec'][i],
+                                                 trimmed_om['pmra'][i],
+                                                 trimmed_om['pmdec'][i],
+                                                 odate)
+
+                cra = cra_ppm + (ra_plx.value / 3600)
+                cdec = cdec_ppm + (dec_plx.value / 3600)
+
+                corrected_coords.append([cra, cdec])
+
+            cra_cdec = Table(np.array(corrected_coords),
+                             names=("cra",
+                                    "cdec"))
+
+            c = coordinates.SkyCoord(cra_cdec['cra'] * u.deg,
+                                     cra_cdec['cdec'] * u.deg, frame='icrs')
+
+        else:
+            c = coordinates.SkyCoord(trimmed_om['ra'] * u.deg,
+                                     trimmed_om['dec'] * u.deg, frame='icrs')
+
         rd = c.to_string('hmsdms', sep=":", precision=5)
         radec = np.reshape(rd, (-1, 1))
 
@@ -641,7 +697,7 @@ class AstCalc:
         iraf.daophot(_doprint=0)
 
         ra_dec = Column(name='ra_dec', data=radec[:, 0])
-        x_y = Table(objects_matrix['x', 'y'])
+        x_y = Table(trimmed_om['x', 'y'])
 
         x_y.add_column(ra_dec, 0)
         np.savetxt("{0}/coords".format(getcwd()), x_y, fmt='%s')
@@ -657,7 +713,7 @@ class AstCalc:
         iraf.ccmap.setParam('xcolumn', 3)
         iraf.ccmap.setParam('ycolumn', 4)
         iraf.ccmap.setParam('results', "{0}/results".format(getcwd()))
-        iraf.ccmap.setParam('refsystem', 'icrs')
+        iraf.ccmap.setParam('refsystem', 2015.0)
         iraf.ccmap.setParam('insystem', 'icrs')
         iraf.ccmap.setParam('update', 'yes')
         iraf.ccmap(interactive='no')
@@ -735,6 +791,73 @@ class AstCalc:
                             "X and Y scale",
                             "X and Y axis rotation"])
 
+    def ppm_cor(self, ra, dec, pmRA, pmDE, odate):
+        """
+        Compute stellar parallax corrections with given parameters.
+        @param ra: RA coordinate of object (in degrees).
+        @type ra: float
+        @param dec: DEC coordinate of object (in degrees).
+        @type dec: float
+        @param pmRA: Proper motion in right ascension µ_α* of
+        the source in ICRS at the reference epoch Epoch.
+        This is the projection of the proper motion vector
+        in the direction of increasing right ascension (in milliarcsec)
+        @type pmRA: float
+        @param pmDE: Proper motion in declination direction (in milliarcsec)
+        @type pmDE: float
+        @param odate: Observation time of the frame.
+        @type odate: date
+        @return: list
+        """
+
+        ra = math.radians(ra)
+        dec = math.radians(dec)
+
+        mu_ra = math.radians(pmRA / 3600000) / math.cos(dec)
+
+        to = TimeOps()
+        t0 = to.date2mjd("2015-01-01 00:00:00.000000")
+        t = to.date2mjd(odate)
+
+        cra = ra + ((t - t0) / 365.2568983) * mu_ra
+        cdec = dec + ((t - t0) / 365.2568983) * math.radians(pmDE / 3600000)
+
+        return(math.degrees(cra),
+               math.degrees(cdec))
+    
+    def stellar_parallax_cor(self, parallax, ra, dec, odate):
+        """
+        Compute stellar parallax corrections with given parameters.
+        @param parallax: Parallax value in gaia catalogue in (arcsec)
+        @type parallax: float
+        @param ra: RA coordinate of object (in degrees).
+        @type ra: float
+        @param dec: DEC coordinate of object (in degrees).
+        @type dec: float
+        @param odate: Observation time of the frame.
+        @type odate: date
+        @return: list
+        """
+
+        ra = math.radians(ra)
+        dec = math.radians(dec)
+
+        t = Time(odate)
+        xyz = get_body_barycentric('earth', t, ephemeris='de432s')
+        
+        x = xyz.x.to(u.parsec)
+        y = xyz.y.to(u.parsec)
+        z = xyz.z.to(u.parsec)
+
+        delta_ra = (parallax * (x * math.sin(ra) -
+                                y * math.cos(ra))) / math.cos(dec)
+
+        delta_dec = parallax * ((x * math.cos(ra) + y * math.sin(ra)) *
+                                math.sin(dec) - z * math.cos(dec))
+
+        return((delta_ra.value * u.rad).to(u.arcsec),
+               (delta_dec.value * u.rad).to(u.arcsec))
+
 
 class TimeOps:
 
@@ -796,13 +919,36 @@ class TimeOps:
         @type dt: str
         @return: float
         """
+        
+        date_t = dt
+        
+        if "T" not in dt:
+            date_t = str(dt).replace(" ", "T")
 
-        # 2015-03-08 23:10:01.890000
-        date_t = str(dt).replace(" ", "T")
         t_jd = Time(date_t, format='isot', scale='utc')
 
         return(t_jd.jd)
 
+    def date2mjd(self, dt):
+
+        """
+        Converts date to Modified Julian Date.
+        @param dt: Date
+        @type dt: str
+        @return: float
+        """
+
+        # 2015-03-08 23:10:01.890000
+
+        date_t = dt
+        
+        if "T" not in dt:
+            date_t = str(dt).replace(" ", "T")
+
+        t_mjd = Time(date_t, format='isot', scale='utc')
+
+        return(t_mjd.mjd)
+    
     def convert_time_format(self, timestamp):
 
         """
