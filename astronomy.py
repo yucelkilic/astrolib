@@ -674,8 +674,8 @@ class AstCalc:
                                                  trimmed_om['pmdec'][i],
                                                  odate)
 
-                cra = cra_ppm + (ra_plx.value / 3600)
-                cdec = cdec_ppm + (dec_plx.value / 3600)
+                cra = cra_ppm + (ra_plx / 3600)
+                cdec = cdec_ppm + (dec_plx / 3600)
 
                 corrected_coords.append([cra, cdec])
 
@@ -845,9 +845,9 @@ class AstCalc:
         t = Time(odate)
         xyz = get_body_barycentric('earth', t, ephemeris='de432s')
         
-        x = xyz.x.to(u.parsec)
-        y = xyz.y.to(u.parsec)
-        z = xyz.z.to(u.parsec)
+        x = xyz.x.to(u.au)
+        y = xyz.y.to(u.au)
+        z = xyz.z.to(u.au)
 
         delta_ra = (parallax * (x * math.sin(ra) -
                                 y * math.cos(ra))) / math.cos(dec)
@@ -855,8 +855,9 @@ class AstCalc:
         delta_dec = parallax * ((x * math.cos(ra) + y * math.sin(ra)) *
                                 math.sin(dec) - z * math.cos(dec))
 
-        return((delta_ra.value * u.rad).to(u.arcsec),
-               (delta_dec.value * u.rad).to(u.arcsec))
+        # in arcsec
+        return(delta_ra.value,
+               delta_dec.value)
 
 
 class TimeOps:

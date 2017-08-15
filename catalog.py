@@ -104,16 +104,6 @@ class Query:
                 pass
 
         gaia_matched = np.asarray(gaia_list)
-        
-        if plot:
-            data = fo.hdu[0].data.astype(float)
-            bkg = sep.Background(data)
-            # bkg_image = bkg.back()
-            # bkg_rms = bkg.rms()
-            data_sub = data - bkg
-            splt = StarPlot()
-
-            splt.star_plot(data_sub, gaia_matched)
 
         tgaia_matched = Table(gaia_matched, names=('id',
                                                    'x',
@@ -138,5 +128,15 @@ class Query:
                                                    'ra_diff',
                                                    'dec_diff'))
         
-        print(len(tgaia_matched))
+        if plot:
+            data = fo.hdu[0].data.astype(float)
+            bkg = sep.Background(data)
+            # bkg_image = bkg.back()
+            # bkg_rms = bkg.rms()
+            data_sub = data - bkg
+            splt = StarPlot()
+
+            splt.star_plot(data_sub, tgaia_matched)
+
+        print("Matched objects:", len(tgaia_matched))
         return(tgaia_matched)
