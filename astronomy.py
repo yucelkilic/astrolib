@@ -19,10 +19,7 @@ import numpy as np
 
 import sep
 
-from .io import FileOps
-from .visuals import StarPlot
-
-
+ 
 class FitsOps:
 
     def __init__(self, file_name):
@@ -107,6 +104,7 @@ NET {6}""".format(code, observer, observer, tel,
             objects = ord_objects[::-1]
 
         if plot:
+            from .visuals import StarPlot
             splt = StarPlot()
             splt.star_plot(data_sub, objects)
 
@@ -135,6 +133,8 @@ NET {6}""".format(code, observer, observer, tel,
 class AstCalc:
 
     def __init__(self):
+        
+        from .io import FileOps
         self.fileops = FileOps()
         self.timeops = TimeOps()
 
@@ -173,7 +173,11 @@ class AstCalc:
         except Exception as e:
             print(e)
 
-    def find_skybot_objects(self, odate, ra, dec, radius=16,
+    def find_skybot_objects(self, odate,
+                            ra,
+                            dec,
+                            radius=16,
+                            time_travel=0,
                             observatory="A84"):
 
         """
@@ -188,13 +192,15 @@ class AstCalc:
         @type dec: str
         @param radius: Radius.
         @type radius: float
+        @param time_travel: Jump into time after given date (in hour).
+        @type time_travel: float
         @param observatory: Observation code.
         @type observatory: str
         @return: str
         """
 
         try:
-            epoch = self.timeops.date2jd(odate)
+            epoch = self.timeops.date2jd(odate) + time_travel / 24.0
             bashcmd = ("wget -q \"http://vo.imcce.fr/webservices/skybot/"
                        "skybotconesearch_query.php"
                        "?-ep={0}&-ra={1}&-dec={2}&-rm={3}&-output=object&"
@@ -262,7 +268,7 @@ class AstCalc:
         except Exception as e:
             pass
 
-    def xy2sky2(self, file_name, A_x, y):
+    def xy2sky2(self, file_name, x, y):
 
         """
         Converts physical coordinates to WCS coordinates for calculations.
@@ -278,7 +284,7 @@ class AstCalc:
         try:
             header = fits.getheader(file_name)
             w = WCS(header)
-            astcoords_deg = w.wcs_pix2world([[A_x, y]], 0)
+            astcoords_deg = w.wcs_pix2world([[x, y]], 0)
 
             astcoords = coordinates.SkyCoord(
                 astcoords_deg * u.deg, frame='icrs')
@@ -288,7 +294,7 @@ class AstCalc:
         except Exception as e:
             pass
 
-    def xy2skywcs(self, file_name, A_x, y):
+    def xy2skywcs(self, file_name, x, y):
 
         """
         Converts physical coordinates to WCS coordinates
@@ -307,7 +313,7 @@ class AstCalc:
             file_path, file_and_ext = path.split(file_name)
             system("xy2sky {0} {1} {2} > {3}/coors".format(
                 file_name,
-                A_x,
+                x,
                 y,
                 file_path))
             coors = np.genfromtxt('{0}/coors'.format(file_path),
@@ -330,7 +336,7 @@ class AstCalc:
         except Exception as e:
             pass
 
-    def xy2sky2wcs(self, file_name, A_x, y):
+    def xy2sky2wcs(self, file_name, x, y):
 
         """
         Converts physical coordinates to WCS coordinates for
@@ -349,7 +355,7 @@ class AstCalc:
             file_path, file_and_ext = path.split(file_name)
             system("xy2sky {0} {1} {2} > {3}/coors".format(
                 file_name,
-                A_x,
+                x,
                 y,
                 file_path))
             coors = np.genfromtxt('{0}/coors'.format(file_path),
@@ -362,7 +368,7 @@ class AstCalc:
             system("rm -rf {0}/coors".format(file_path))
 
             c = coordinates.SkyCoord('{0} {1}'.format(coors[0], coors[1]),
-                                     unit=(u.hourangle, u.deg), frame='fk5')
+                                     unit=(u.hourangle, u.deg), frame='icrs')
 
             return(c)
         except Exception as e:
@@ -381,17 +387,17 @@ class AstCalc:
             fitsops = FitsOps(file_name)
             naxis1 = fitsops.get_header("naxis1")
             naxis2 = fitsops.get_header("naxis2")
-            A_x, y = [float(naxis1) / 2, float(naxis2) / 2]
+            x, y = [float(naxis1) / 2, float(naxis2) / 2]
 
             if not wcs_ref:
-                coor = self.xy2sky(file_name, A_x, y)
+                coor = self.xy2sky(file_name, x, y)
 
                 ra = ' '.join(coor.split(" ")[:3])
                 dec = ' '.join(coor.split(" ")[3:])
 
                 return([ra, dec])
             else:
-                coor = self.xy2sky2(file_name, A_x, y)
+                coor = self.xy2sky2(file_name, x, y)
 
                 center_ra = coor.ra
                 center_dec = coor.dec
