@@ -1,2 +1,2 @@
 # astrolib
-Click [here](https://github.com/yucelkilic/astrolib/blob/master/tutorials.ipynb) for documentation.
+Click [here](https://github.com/yucelkilic/astrolib/blob/master/tutorials.ipynb) for the documentation.
