@@ -453,7 +453,7 @@ ap.asteroids_plot("./5247_0007_R_new.fits", time_travel=4)
 
 # Plot Asteroids without a FITS File <a class="anchor" id="plot-asteroids-without-fits"></a>
 
-Suppose that you do not have a FITS file, but you want to plot asteroids in the field of view (in arcmin) that you want at a particular time in a particular region. Then you should have indicated the coordinates of the region (RA, DEC) and the time of observation you wanted. No that, time_travel parameter expresses the approximate observation time duration in hours.
+Suppose that you do not have a FITS file, but you want to plot asteroids in the field of view (in arcmin) that you want at a particular time in a particular region. Then you should have indicated the coordinates of the region (RA, DEC) and the time of observation you wanted. Note that, time_travel parameter expresses the approximate observation time duration in hours.
 
 
 ```python
