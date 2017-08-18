@@ -412,7 +412,6 @@ dec = fo.get_header('objctdec')
 # Please provide image path, so ./ is important!
 ac.solve_field("./5247_0007_R.fits", ra=ra, dec=dec)
 ```
-
     Image has been solved!
 
     True
@@ -429,9 +428,6 @@ pwd
 ```python
 cp -rv 5247_0007_R.new 5247_0007_R_new.fits
 ```
-
-    5247_0007_R.new -> 5247_0007_R_new.fits
-
 
 # Plot Asteroids <a class="anchor" id="plot-asteroids"></a>
 
@@ -493,5 +489,3 @@ ap.asteroids_plot(ra="20 11 38.6159",
     True
 
 ```python
-
-```
