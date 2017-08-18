@@ -215,7 +215,10 @@ class AstCalc:
             system(bashcmd)
             skyresult = self.fileops.read_file_as_array("skybot.cat")
             system('rm -rf skybot.cat')
-            return (skyresult)
+            if "No solar system object was found" not in str(skyresult):
+                return(True, skyresult)
+            else:
+                return(False, str(skyresult))
 
         except Exception as e:
             print(e)

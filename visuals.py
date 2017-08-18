@@ -150,33 +150,44 @@ class StarPlot:
             odate = odate
             ra_dec = [co.ra, co.dec]
 
-        asteroids = Table(ac.find_skybot_objects(odate,
-                                                 ra_dec[0].degree,
-                                                 ra_dec[1].degree,
-                                                 radius=radius),
-                          names=('num',
-                                 'name',
-                                 'ra(h)',
-                                 'dec(deg)',
-                                 'class',
-                                 'm_v',
-                                 'err(arcsec)',
-                                 'd(arcsec)'))
+        request0 = ac.find_skybot_objects(odate,
+                                          ra_dec[0].degree,
+                                          ra_dec[1].degree,
+                                          radius=radius)
 
-        asteroids_after = Table(ac.find_skybot_objects(
-            odate,
-            ra_dec[0].degree,
-            ra_dec[1].degree,
-            radius=radius,
-            time_travel=time_travel),
-                                names=('num',
-                                       'name',
-                                       'ra(h)',
-                                       'dec(deg)',
-                                       'class',
-                                       'm_v',
-                                       'err(arcsec)',
-                                       'd(arcsec)'))
+        if request0[0]:
+            asteroids = Table(request0[1],
+                              names=('num',
+                                     'name',
+                                     'ra(h)',
+                                     'dec(deg)',
+                                     'class',
+                                     'm_v',
+                                     'err(arcsec)',
+                                     'd(arcsec)'))
+        elif request0[0] is False:
+            print(request0[1])
+            raise SystemExit
+
+        request1 = ac.find_skybot_objects(odate,
+                                          ra_dec[0].degree,
+                                          ra_dec[1].degree,
+                                          radius=radius,
+                                          time_travel=time_travel)
+
+        if request1[0]:
+            asteroids_after = Table(request1[1],
+                                    names=('num',
+                                           'name',
+                                           'ra(h)',
+                                           'dec(deg)',
+                                           'class',
+                                           'm_v',
+                                           'err(arcsec)',
+                                           'd(arcsec)'))
+        elif request1[0] is False:
+            print(request1[1])
+            raise SystemExit
 
         for i in range(len(asteroids)):
             if float(asteroids['m_v'][i]) <= max_mag:
