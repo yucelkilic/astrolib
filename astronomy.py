@@ -461,6 +461,7 @@ class AstCalc:
                 print(image_path + ' cannot be solved!')
                 return(False)
             else:
+                system("mv {0}.new {0}_new.fits".format(root))
                 print('Image has been solved!')
                 return(True)
         
