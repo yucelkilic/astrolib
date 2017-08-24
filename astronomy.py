@@ -416,7 +416,9 @@ class AstCalc:
                     downsample=4,
                     radius=0.5,
                     ra=None,
-                    dec=None):
+                    dec=None,
+                    ra_keyword="objctra",
+                    dec_keyword="objctdec"):
 
         """
         The astrometry engine will take any image and return
@@ -436,18 +438,32 @@ class AstCalc:
         @type ra: str
         @param dec: DEC of field center for search, format: degrees or hh:mm:ss
         @type dec: str
+        @param ra_keyword: RA keyword in the FITS image header
+        @type ra_keyword: str
+        @param dec_keyword: DEC keyword in the FITS image header
+        @type dec_keyword: str
         @return: boolean
         """
     
         try:
+            if ra is None and dec is None:
+                fo = FitsOps(image_path)
+                ra = fo.get_header(ra_keyword)
+                dec = fo.get_header(dec_keyword)
+                ra = ra.replace(" ", ":")
+                dec = dec.replace(" ", ":")
+            else:
+                ra = ra.replace(" ", ":")
+                dec = dec.replace(" ", ":")
+                
             system(("solve-field --no-fits2fits --no-plots "
                     "--no-verify --tweak-order {0} "
                     "--downsample {1} --overwrite --radius {2} --no-tweak "
                     "--ra {3} --dec {4} {5}").format(tweak_order,
                                                      downsample,
                                                      radius,
-                                                     ra.replace(" ", ":"),
-                                                     dec.replace(" ", ":"),
+                                                     ra,
+                                                     dec,
                                                      image_path))
             # Cleaning
             root, extension = path.splitext(image_path)
