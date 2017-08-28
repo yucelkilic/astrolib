@@ -11,7 +11,6 @@ from astropy.table import Table
 from astropy import coordinates
 from astropy import units as u
 from astroquery.skyview import SkyView
-import astropy.units as u
 
 import numpy as np
 import sep
@@ -96,6 +95,8 @@ class StarPlot:
         @returns: boolean
         """
 
+        from .catalog import Query
+
         # filename = get_pkg_data_filename(image_path)
         rcParams['figure.figsize'] = [10., 8.]
         # rcParams.update({'font.size': 10})
@@ -141,6 +142,7 @@ class StarPlot:
         overlay[0].set_axislabel('Right Ascension (ICRS)')
         overlay[1].set_axislabel('Declination (ICRS)')
 
+        sb = Query()
         ac = AstCalc()
         if image_path:
             fo = FitsOps(image_path)
@@ -150,41 +152,25 @@ class StarPlot:
             odate = odate
             ra_dec = [co.ra, co.dec]
 
-        request0 = ac.find_skybot_objects(odate,
+        request0 = sb.find_skybot_objects(odate,
                                           ra_dec[0].degree,
                                           ra_dec[1].degree,
                                           radius=radius)
 
         if request0[0]:
-            asteroids = Table(request0[1],
-                              names=('num',
-                                     'name',
-                                     'ra(h)',
-                                     'dec(deg)',
-                                     'class',
-                                     'm_v',
-                                     'err(arcsec)',
-                                     'd(arcsec)'))
+            asteroids = request0[1]
         elif request0[0] is False:
             print(request0[1])
             raise SystemExit
 
-        request1 = ac.find_skybot_objects(odate,
+        request1 = sb.find_skybot_objects(odate,
                                           ra_dec[0].degree,
                                           ra_dec[1].degree,
                                           radius=radius,
                                           time_travel=time_travel)
 
         if request1[0]:
-            asteroids_after = Table(request1[1],
-                                    names=('num',
-                                           'name',
-                                           'ra(h)',
-                                           'dec(deg)',
-                                           'class',
-                                           'm_v',
-                                           'err(arcsec)',
-                                           'd(arcsec)'))
+            asteroids_after = request1[1]
         elif request1[0] is False:
             print(request1[1])
             raise SystemExit
@@ -232,4 +218,3 @@ class StarPlot:
         plt.show()
         print(asteroids)
         return(True)
-        

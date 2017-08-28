@@ -89,8 +89,6 @@ NET {6}""".format(code, observer, observer, tel,
 
         data = self.hdu[0].data.astype(float)
         bkg = sep.Background(data)
-        # bkg_image = bkg.back()
-        # bkg_rms = bkg.rms()
         data_sub = data - bkg
         all_objects = sep.extract(data_sub, 1.5, err=bkg.globalrms)
         ord_objects = np.sort(all_objects, order=['flux'])
@@ -170,56 +168,6 @@ class AstCalc:
         try:
             mag = 25 - 2.5 * math.log10(flux)
             return("{:.1f}".format(mag))
-        except Exception as e:
-            print(e)
-
-    def find_skybot_objects(self, odate,
-                            ra,
-                            dec,
-                            radius=16,
-                            time_travel=0,
-                            observatory="A84"):
-
-        """
-        Seek and identify all the known solar system objects
-        in a field of view of a given size.
-        
-        @param odate: Observation date.
-        @type odate: date
-        @param ra: RA of field center for search, format: degrees or hh:mm:ss
-        @type ra: str
-        @param dec: DEC of field center for search, format: degrees or hh:mm:ss
-        @type dec: str
-        @param radius: Radius.
-        @type radius: float
-        @param time_travel: Jump into time after given date (in hour).
-        @type time_travel: float
-        @param observatory: Observation code.
-        @type observatory: str
-        @return: str
-        """
-
-        try:
-            epoch = self.timeops.date2jd(odate) + time_travel / 24.0
-            bashcmd = ("wget -q \"http://vo.imcce.fr/webservices/skybot/"
-                       "skybotconesearch_query.php"
-                       "?-ep={0}&-ra={1}&-dec={2}&-rm={3}&-output=object&"
-                       "-loc={4}&-filter=120&-objFilter=120&-from="
-                       "SkybotDoc&-mime=text\" -O skybot.cat").format(
-                           epoch,
-                           ra,
-                           dec,
-                           radius,
-                           observatory)
-
-            system(bashcmd)
-            skyresult = self.fileops.read_file_as_array("skybot.cat")
-            system('rm -rf skybot.cat')
-            if "No solar system object was found" not in str(skyresult):
-                return(True, skyresult)
-            else:
-                return(False, str(skyresult))
-
         except Exception as e:
             print(e)
 
