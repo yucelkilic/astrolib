@@ -241,7 +241,10 @@ class Query:
         return(result)
 
     #sorts list of stars (puts the best for being comparise stars in the first place)
-    def sort_stars(self, starstable):
+    def sort_stars(self, starstable, min_mag):
+
+        starstable = starstable[starstable['Rmag'] > min_mag]
+
         starstable['Bmag'].fill_value = 0.0
         starstable['Vmag'].fill_value = 0.0
         starstable['Rmag'].fill_value = 0.0

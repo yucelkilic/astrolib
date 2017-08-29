@@ -1,18 +1,20 @@
 # -*- coding: utf-8 -*-
 
-from matplotlib import rcParams
-from matplotlib.patches import Circle
-
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import coordinates
 from astropy import units as u
+from astropy.time import Time
+from astropy.time import TimeDelta
+from astropy.table import Table
 from .catalog import Query
 from .astronomy import FitsOps
 from .astronomy import AstCalc
+from .astronomy import TimeOps
 import sep
+import math
 import numpy as np
-import matplotlib.pyplot as plt
+import os
 
 
 class PhotOps:
@@ -44,21 +46,27 @@ class PhotOps:
 
         return({"flag": flag,
                 "flux": flux,
-                "fluxerr":fluxerr})
+                "fluxerr": fluxerr})
 
     def asteroids_phot(self, aper_radius=3.0,
                        radius=10, gain=0.57, max_mag=20):
 
         sb = Query()
         ac = AstCalc()
+        to = TimeOps()
         fo = FitsOps(self.image_path)
         header = self.hdu.header
         w = WCS(header)
 
         odate = fo.get_header('date-obs')
+        t1 = Time(odate.replace('T', ' '))
+        exptime = fo.get_header('exptime')
+        dt = TimeDelta(exptime / 2.0, format='sec')
+        odate_middle = t1 + dt
+        jd = to.date2jd(odate_middle.value)
         ra_dec = ac.center_finder(self.image_path, wcs_ref=True)
 
-        request = sb.find_skybot_objects(odate,
+        request = sb.find_skybot_objects(odate_middle.value,
                                          ra_dec[0].degree,
                                          ra_dec[1].degree,
                                          radius=radius)
@@ -74,8 +82,6 @@ class PhotOps:
         bkg = sep.Background(data)
         data_sub = data - bkg
 
-        phot_res_list = []
-
         for i in range(len(asteroids)):
             if float(asteroids['m_v'][i]) <= max_mag:
                 c = coordinates.SkyCoord('{0} {1}'.format(
@@ -84,63 +90,117 @@ class PhotOps:
                                          unit=(u.hourangle, u.deg),
                                          frame='icrs')
 
-                min_mag_ast = float(asteroids['m_v'][i]) - 2
-                
-                starstable = sb.query_color(c.ra.degree,
-                                            c.dec.degree,
-                                            10.0 / 60.0,
-                                            min_mag=min_mag_ast)
+                # asteroid's X and Y coor
+                a_x, a_y = w.wcs_world2pix(c.ra.degree, c.dec.degree, 1)
 
-                print(sb.sort_stars(starstable))
-
-                px, py = w.wcs_world2pix(c.ra.degree, c.dec.degree, 1)
-                print(asteroids['num'][i], px, py)
-                
+                # phot asteroids
                 flux, fluxerr, flag = sep.sum_circle(
                     data_sub,
-                    px,
-                    py,
+                    a_x,
+                    a_y,
                     aper_radius,
                     err=bkg.globalrms,
                     gain=gain)
 
-                # magt_i = ac.flux2mag(flux)
-                # magt_i_err = ac.flux2mag(fluxerr)                
-        """
-        sb.query_color(306.77168051, -23.47029011, 0.01, max_sources=10)
-                # filename = get_pkg_data_filename(image_path)
-                rcParams['figure.figsize'] = [10., 8.]
-                # rcParams.update({'font.size': 10})
+                if flux == 0.0 or fluxerr == 0.0:
+                    print("Bad asteroid selected (out of frame!)!")
+                    raise SystemExit
 
-                data = self.hdu.data.astype(float)
+                magt_i = ac.flux2mag(flux)
+                magt_i_err = fluxerr / flux * 2.5 / math.log(10)
 
-                bkg = sep.Background(data)
-                # bkg_image = bkg.back()
-                # bkg_rms = bkg.rms()
-                data_sub = data - bkg
-                m, s = np.mean(data_sub), np.std(data_sub)
+                min_mag_ast = float(asteroids['m_v'][i]) - 2
 
-                ax = plt.subplot(projection=w)
+                if i < 1:
+                    comptable = sb.query_color(c.ra.degree,
+                                               c.dec.degree,
+                                               5.0 / 60.0,
+                                               min_mag=min_mag_ast,
+                                               max_mag=19.5)
 
-                plt.imshow(data_sub, interpolation='nearest',
-                           cmap='gray', vmin=m-s, vmax=m+s, origin='lower')
-                ax.coords.grid(True, color='white', ls='solid')
-                ax.coords[0].set_axislabel('Galactic Longitude')
-                ax.coords[1].set_axislabel('Galactic Latitude')
+                s_comptable = sb.sort_stars(comptable, min_mag_ast)
 
-                overlay = ax.get_coords_overlay('icrs')
-                overlay.grid(color='white', ls='dotted')
-                overlay[0].set_axislabel('Right Ascension (ICRS)')
-                overlay[1].set_axislabel('Declination (ICRS)')
+                phot_res_list = []
 
+                # phot comp. stars
+                for j in range(len(s_comptable)):
+                    # star's X and Y coor
+                    s_x, s_y = w.wcs_world2pix(s_comptable['RAJ2000'][j],
+                                               s_comptable['DEJ2000'][j],
+                                               1)
+                    # print('Circle', s_x, s_y, 10)
 
-                p = Circle((c.ra.degree, c.dec.degree), 0.001,
-                           edgecolor="red",
-                           facecolor='none',
-                           transform=ax.get_transform('icrs'))
-                ax.add_patch(p)
-        # plt.gca().invert_xaxis()
-        # plt.gca().invert_yaxis()
-        plt.show()
+                    flux, fluxerr, flag = sep.sum_circle(
+                        data_sub,
+                        s_x,
+                        s_y,
+                        aper_radius,
+                        err=bkg.globalrms,
+                        gain=gain)
 
-        """
+                    if flux == 0.0 or fluxerr == 0.0:
+                        print("Bad star selected!")
+                        raise SystemExit
+                    
+                    magc_i = ac.flux2mag(flux)
+                    magc_i_err = fluxerr / flux * 2.5 / math.log(10)
+
+                    magt = (float(magt_i) -
+                            float(magc_i)) + s_comptable['Rmag'][j]
+                    magt_err = math.sqrt(math.pow(float(magt_i_err), 2) +
+                                         math.pow(float(magc_i_err), 2))
+
+                    phot_res_list.append([asteroids['num'][i],
+                                          jd,
+                                          float(magt_i),
+                                          float(magt_i_err),
+                                          float(magc_i),
+                                          float(magc_i_err),
+                                          float(magt),
+                                          float(magt_err),
+                                          asteroids['m_v'][i],
+                                          s_comptable['NOMAD1'][j],
+                                          s_comptable['Rmag'][j]])
+
+                np_phot_res = np.array(phot_res_list)
+
+                phot_res_table = Table(np_phot_res,
+                                       names=('ast_num',
+                                              'jd',
+                                              'magt_i',
+                                              'magt_i_err',
+                                              'magc_i',
+                                              'magc_i_err',
+                                              'magt',
+                                              'magt_err',
+                                              'ast_mag_cat',
+                                              'nomad1',
+                                              'star_Rmag'),
+                                       dtype=('i4',
+                                              'S25',
+                                              'f8',
+                                              'f8',
+                                              'f8',
+                                              'f8',
+                                              'f8',
+                                              'f8',
+                                              'f8',
+                                              'U20',
+                                              'f8'))
+
+                phot_res_table['magt_i'].format = '.3f'
+                phot_res_table['magt_i_err'].format = '.3f'
+                phot_res_table['magc_i'].format = '.3f'
+                phot_res_table['magc_i_err'].format = '.3f'
+                phot_res_table['magt'].format = '.3f'
+                phot_res_table['magt_err'].format = '.3f'
+                
+                with open('{0}/{1}.txt'.format(
+                        os.getcwd(),
+                        asteroids['num'][i]), 'a') as f_handle:
+                    f_handle.seek(0, os.SEEK_END)
+                    phot_res_table.write(f_handle, format='ascii.no_header')
+
+                print(phot_res_table)
+
+        return(phot_res_table)
