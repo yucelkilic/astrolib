@@ -186,11 +186,15 @@ class PhotOps:
                     
                         magc_i = ac.flux2mag(flux)
                         magc_i_err = fluxerr / flux * 2.5 / math.log(10)
-                        
-                        magt = (float(magt_i) -
-                                float(magc_i)) + s_comptable['Rmag'][j]
-                        magt_err = math.sqrt(math.pow(float(magt_i_err), 2) +
-                                             math.pow(float(magc_i_err), 2))
+
+                        try:
+                            magt = (float(magt_i) -
+                                    float(magc_i)) + s_comptable['Rmag'][j]
+                            magt_err = math.sqrt(
+                                math.pow(float(magt_i_err), 2) +
+                                math.pow(float(magc_i_err), 2))
+                        except:
+                            continue
 
                         phot_res_list.append([asteroids['num'][i],
                                               jd,
@@ -247,7 +251,7 @@ class PhotOps:
                     # print(phot_res_table)
             
             # Test
-            time.sleep(0.1)
+            time.sleep(0.2)
             self.update_progress(
                 "Photometry is done for: {0}".format(fitsfile),
                 id / len(fitslist))
