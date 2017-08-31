@@ -426,7 +426,7 @@ class AstCalc:
                 return(False)
             else:
                 system("mv {0}.new {0}_new.fits".format(root))
-                print('Image has been solved!')
+                print("{0}.fits --> {0}_new.fits: solved!".format(root))
                 return(True)
         
         except Exception as e:
