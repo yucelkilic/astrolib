@@ -216,7 +216,7 @@ class Query:
                     radius=0.01,
                     min_mag=10,
                     max_mag=20,
-                    max_sources=50):
+                    max_sources=100):
 
         c = coord.SkyCoord(ra,
                            dec,

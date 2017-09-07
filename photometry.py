@@ -4,8 +4,8 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import coordinates
 from astropy import units as u
-from astropy.time import Time
-from astropy.time import TimeDelta
+# from astropy.time import Time
+# from astropy.time import TimeDelta
 from astropy.table import Table
 from .catalog import Query
 from .astronomy import FitsOps
@@ -18,6 +18,12 @@ import os
 import glob
 import time
 import sys
+import matplotlib.pyplot as plt
+try:
+    import f2n
+except ImportError:
+    print('Python cannot import f2n. Make sure f2n is installed.')
+    raise SystemExit
 
 
 class PhotOps:
@@ -63,7 +69,7 @@ class PhotOps:
                 "flux": flux,
                 "fluxerr": fluxerr})
 
-    def asteroids_phot(self, image_path, aper_radius=3.0,
+    def asteroids_phot(self, image_path, aper_radius=6.0,
                        radius=10, gain=0.57, max_mag=20):
 
         if ".fit" in os.path.basename(image_path):
@@ -94,20 +100,26 @@ class PhotOps:
             naxis1 = fo.get_header('naxis1')
             naxis2 = fo.get_header('naxis2')
             odate = fo.get_header('date-obs')
-            t1 = Time(odate.replace('T', ' '))
-            exptime = fo.get_header('exptime')
-            dt = TimeDelta(exptime / 2.0, format='sec')
-            odate_middle = t1 + dt
-            jd = to.date2jd(odate_middle.value)
+            # t1 = Time(odate.replace('T', ' '))
+            # exptime = fo.get_header('exptime')
+            # dt = TimeDelta(exptime / 2.0, format='sec')
+            # odate_middle = t1 + dt
+            # jd = to.date2jd(odate_middle.value)
+            jd = to.date2jd(odate)
             ra_dec = ac.center_finder(fitsfile, wcs_ref=True)
 
-            request = sb.find_skybot_objects(odate_middle.value,
+            image = f2n.fromfits(fitsfile, verbose=False)
+            image.setzscale('auto', 'auto')
+            image.makepilimage('log', negative=False)
+
+            request = sb.find_skybot_objects(odate,
                                              ra_dec[0].degree,
                                              ra_dec[1].degree,
                                              radius=radius)
 
             if request[0]:
-                asteroids = request[1]
+                asteroids = Table(np.sort(request[1][::-1],
+                                          order=['m_v']))
             elif request[0] is False:
                 print(request[1])
                 raise SystemExit
@@ -144,10 +156,36 @@ class PhotOps:
                         print("Bad asteroid selected (out of frame!)!")
                         raise SystemExit
 
+                    snr = []
+                    for aper in range(30):
+                        # phot asteroids
+                        flux, fluxerr, flag = sep.sum_circle(
+                            data_sub,
+                            a_x,
+                            a_y,
+                            aper,
+                            err=bkg.globalrms,
+                            gain=gain)
+
+                        snr.append([aper, (flux/fluxerr)])
+
+                    npsnr = np.array(snr)
+                    plt.title(asteroids['num'][i])
+                    plt.xlabel('Aperture (px)')
+                    plt.ylabel('SNR')
+                    plt.scatter(npsnr[:, 0],
+                                npsnr[:, 1])
+
+                    plt.show()
+
                     magt_i = ac.flux2mag(flux)
                     magt_i_err = fluxerr / flux * 2.5 / math.log(10)
 
                     min_mag_ast = float(asteroids['m_v'][i]) - 2
+
+                    label = '{0}'.format(asteroids['num'][i])
+                    image.drawcircle(a_x, a_y, r=aper_radius,
+                                     colour=(255, 0, 0), label=label)
 
                     if i < 1 and id < 1:
                         comptable = sb.query_color(c.ra.degree,
@@ -195,6 +233,10 @@ class PhotOps:
                                 math.pow(float(magc_i_err), 2))
                         except:
                             continue
+
+                        label = '{0}'.format(s_comptable['NOMAD1'][j])
+                        image.drawcircle(s_x, s_y, r=aper_radius,
+                                         colour=(0, 255, 0), label=label)
 
                         phot_res_list.append([asteroids['num'][i],
                                               jd,
@@ -255,5 +297,10 @@ class PhotOps:
             self.update_progress(
                 "Photometry is done for: {0}".format(fitsfile),
                 id / len(fitslist))
+            image.writetitle(os.path.basename(fitsfile))
+
+            fitshead, fitsextension = os.path.splitext(fitsfile)
+            image.writeinfo([odate], colour=(255, 100, 0))
+            image.tonet('{0}.png'.format(fitshead))
         self.update_progress("Photometry done!", 1)
         return(True)
