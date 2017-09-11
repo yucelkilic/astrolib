@@ -100,6 +100,7 @@ class PhotOps:
             naxis1 = fo.get_header('naxis1')
             naxis2 = fo.get_header('naxis2')
             odate = fo.get_header('date-obs')
+            filter = fo.get_header('filter').replace(" ", "_")
             # t1 = Time(odate.replace('T', ' '))
             # exptime = fo.get_header('exptime')
             # dt = TimeDelta(exptime / 2.0, format='sec')
@@ -260,11 +261,13 @@ class PhotOps:
                     # mag_t_std calc.
                     mag_t_std = np.std(np_phot_res[:, 6].astype(float))
                     
-                    np_mag_t_avr_std = [[mag_t_avr, mag_t_std] for i in range(
+                    np_mag_t_avr_std = [[mag_t_avr,
+                                         mag_t_std,
+                                         filter] for i in range(
                         len(np_phot_res))]
                     
                     k = np.array(np_mag_t_avr_std).reshape(
-                        len(np_mag_t_avr_std), 2)
+                        len(np_mag_t_avr_std), 3)
 
                     # numpy array with mag_t_avr
                     np_phot_res_avg_std = np.concatenate(
@@ -285,7 +288,8 @@ class PhotOps:
                                                   'nomad1',
                                                   'star_Rmag',
                                                   'mag_t_avr',
-                                                  'mag_t_std'),
+                                                  'mag_t_std',
+                                                  'filter'),
                                            dtype=('i4',
                                                   'S25',
                                                   'f8',
@@ -298,7 +302,8 @@ class PhotOps:
                                                   'U20',
                                                   'f8',
                                                   'f8',
-                                                  'f8'))
+                                                  'f8',
+                                                  'U20'))
 
                     phot_res_table['magt_i'].format = '.3f'
                     phot_res_table['magt_i_err'].format = '.3f'
@@ -311,8 +316,14 @@ class PhotOps:
                             os.getcwd(),
                             asteroids['num'][i]), 'a') as f_handle:
                         f_handle.seek(0, os.SEEK_END)
-                        phot_res_table.write(f_handle,
-                                             format='ascii.no_header')
+                        if id == 0:
+                            phot_res_table.write(
+                                f_handle,
+                                format='ascii.commented_header')
+                        else:
+                            phot_res_table.write(f_handle,
+                                                 format='ascii.no_header')
+
 
                     # print(phot_res_table)
             

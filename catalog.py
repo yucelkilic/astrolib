@@ -172,41 +172,44 @@ class Query:
         @return: str
         """
 
-        try:
-            to = TimeOps()
-            fo = FileOps()
-            epoch = to.date2jd(odate) + time_travel / 24.0
-            bashcmd = ("wget -q \"http://vo.imcce.fr/webservices/skybot/"
-                       "skybotconesearch_query.php"
-                       "?-ep={0}&-ra={1}&-dec={2}&-rm={3}&-output=object&"
-                       "-loc={4}&-filter=120&-objFilter=120&-from="
-                       "SkybotDoc&-mime=text\" -O skybot.cat").format(
-                           epoch,
-                           ra,
-                           dec,
-                           radius,
-                           observatory)
+        while True:
+            try:
+                to = TimeOps()
+                fo = FileOps()
+                epoch = to.date2jd(odate) + time_travel / 24.0
+                bashcmd = ("wget -q \"http://vo.imcce.fr/webservices/skybot/"
+                           "skybotconesearch_query.php"
+                           "?-ep={0}&-ra={1}&-dec={2}&-rm={3}&-output=object&"
+                           "-loc={4}&-filter=120&-objFilter=120&-from="
+                           "SkybotDoc&-mime=text\" -O skybot.cat").format(
+                               epoch,
+                               ra,
+                               dec,
+                               radius,
+                               observatory)
 
-            system(bashcmd)
-            skyresult = fo.read_file_as_array("skybot.cat")
-            system('rm -rf skybot.cat')
-            if "No solar system object was found" not in str(skyresult):
-                tskyresult = Table(skyresult,
-                                   names=('num',
-                                          'name',
-                                          'ra(h)',
-                                          'dec(deg)',
-                                          'class',
-                                          'm_v',
-                                          'err(arcsec)',
-                                          'd(arcsec)'))
-                return(True, tskyresult)
-            else:
-                return(False, str(skyresult))
-
-        except Exception as e:
-            print(e)
-
+                system(bashcmd)
+                skyresult = fo.read_file_as_array("skybot.cat")
+                system('rm -rf skybot.cat')
+                if "No solar system object was found" not in str(skyresult):
+                    tskyresult = Table(skyresult,
+                                       names=('num',
+                                              'name',
+                                              'ra(h)',
+                                              'dec(deg)',
+                                              'class',
+                                              'm_v',
+                                              'err(arcsec)',
+                                              'd(arcsec)'))
+                    return(True, tskyresult)
+                else:
+                    return(False, str(skyresult))
+                
+            except:
+                print("\nConnection Failed, Retrying..")
+                continue
+            break
+                
     # This code adapted from vvv:
     # https://github.com/MichalZG/AsteroidsPhot/blob/master/starscoordinates.py
 
