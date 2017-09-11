@@ -252,7 +252,27 @@ class PhotOps:
 
                     np_phot_res = np.array(phot_res_list)
 
-                    phot_res_table = Table(np_phot_res,
+                    # magnitude average
+                    mag_t_avr = np.average(np_phot_res[:, 6].astype(float),
+                                           weights=np_phot_res[:, 7].astype(
+                                               float))
+
+                    # mag_t_std calc.
+                    mag_t_std = np.std(np_phot_res[:, 6].astype(float))
+                    
+                    np_mag_t_avr_std = [[mag_t_avr, mag_t_std] for i in range(
+                        len(np_phot_res))]
+                    
+                    k = np.array(np_mag_t_avr_std).reshape(
+                        len(np_mag_t_avr_std), 2)
+
+                    # numpy array with mag_t_avr
+                    np_phot_res_avg_std = np.concatenate(
+                        (np_phot_res,
+                         k),
+                        axis=1)
+
+                    phot_res_table = Table(np_phot_res_avg_std,
                                            names=('ast_num',
                                                   'jd',
                                                   'magt_i',
@@ -263,7 +283,9 @@ class PhotOps:
                                                   'magt_err',
                                                   'ast_mag_cat',
                                                   'nomad1',
-                                                  'star_Rmag'),
+                                                  'star_Rmag',
+                                                  'mag_t_avr',
+                                                  'mag_t_std'),
                                            dtype=('i4',
                                                   'S25',
                                                   'f8',
@@ -274,6 +296,8 @@ class PhotOps:
                                                   'f8',
                                                   'f8',
                                                   'U20',
+                                                  'f8',
+                                                  'f8',
                                                   'f8'))
 
                     phot_res_table['magt_i'].format = '.3f'
