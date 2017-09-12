@@ -69,7 +69,9 @@ class PhotOps:
                 "flux": flux,
                 "fluxerr": fluxerr})
 
-    def asteroids_phot(self, image_path, aper_radius=6.0,
+    def asteroids_phot(self, image_path,
+                       multi_object=True,
+                       aper_radius=6.0,
                        radius=10, gain=0.57, max_mag=20):
 
         if ".fit" in os.path.basename(image_path):
@@ -100,6 +102,7 @@ class PhotOps:
             naxis1 = fo.get_header('naxis1')
             naxis2 = fo.get_header('naxis2')
             odate = fo.get_header('date-obs')
+            objct = fo.get_header('object')
             filter = fo.get_header('filter').replace(" ", "_")
             # t1 = Time(odate.replace('T', ' '))
             # exptime = fo.get_header('exptime')
@@ -119,8 +122,15 @@ class PhotOps:
                                              radius=radius)
 
             if request[0]:
-                asteroids = Table(np.sort(request[1][::-1],
-                                          order=['m_v']))
+                if multi_object:
+                    asteroids = Table(np.sort(request[1][::-1],
+                                              order=['m_v']))
+                else:
+                    asteroids = Table(np.sort(request[1],
+                                              order=['num']))
+                    mask = asteroids['num'] == str(objct).upper()
+                    asteroids = asteroids[mask]
+                    print(asteroids)
             elif request[0] is False:
                 print(request[1])
                 raise SystemExit
@@ -324,9 +334,6 @@ class PhotOps:
                             phot_res_table.write(f_handle,
                                                  format='ascii.no_header')
 
-
-                    # print(phot_res_table)
-            
             # Test
             time.sleep(0.2)
             self.update_progress(

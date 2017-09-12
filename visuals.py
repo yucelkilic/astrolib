@@ -3,17 +3,20 @@ from matplotlib import rcParams
 from matplotlib.patches import FancyArrowPatch
 from matplotlib.patches import Ellipse
 from matplotlib.patches import Circle
+import matplotlib.gridspec as gridspec
 
 from .astronomy import AstCalc
 from .astronomy import FitsOps
 from astropy.io import fits
 from astropy.table import Table
+from astropy import table
 from astropy import coordinates
 from astropy import units as u
 from astroquery.skyview import SkyView
 
 import numpy as np
 import sep
+import os
 
 from astropy.wcs import WCS
 # from astropy.utils.data import get_pkg_data_filename
@@ -218,3 +221,57 @@ class StarPlot:
         plt.show()
         print(asteroids)
         return(True)
+
+    def lc_plot(self, result_file_path=None,
+                xcol='jd',
+                ycol='mag_t_avr',
+                errcol='mag_t_std',
+                mark_color="blue",
+                bar_color="red"):
+
+        print("Plotting asteroids LC...")
+
+        fn = os.path.basename(result_file_path).split('.')[0]
+
+        result_file = Table.read(result_file_path,
+                                 format='ascii.commented_header')
+        
+        result_unique_by_jd = table.unique(result_file, keys='jd')
+
+        rcParams['figure.figsize'] = [10., 8.]
+        figlc = plt.figure(1)
+        gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
+
+        # Two subplots, the axes array is 1-d
+        axlc1 = figlc.add_subplot(gs[0])
+        axlc2 = figlc.add_subplot(gs[1])
+        axlc1.set_title(fn)
+        axlc1.errorbar(result_unique_by_jd[xcol],
+                       result_unique_by_jd[ycol],
+                       yerr=result_unique_by_jd[errcol],
+                       fmt='o',
+                       ecolor=bar_color,
+                       color=mark_color,
+                       capsize=5,
+                       elinewidth=2)
+        axlc1.invert_yaxis()
+        axlc2.set_xlabel("$JD$", fontsize=12)
+        axlc1.set_ylabel("$Magnitude (R)$", fontsize=12)
+        axlc2.set_ylabel("$STD$", fontsize=12)
+        
+        fit = np.polyfit(result_unique_by_jd[xcol],
+                         result_unique_by_jd[errcol],
+                         1)
+        fit_fn = np.poly1d(fit)
+        axlc2.plot(result_unique_by_jd[xcol],
+                   result_unique_by_jd[errcol],
+                   'yo',
+                   result_unique_by_jd[xcol],
+                   fit_fn(result_unique_by_jd[xcol]),
+                   '--k')
+
+        axlc1.grid(True)
+        axlc2.grid(True)
+
+        figlc.savefig("{0}/{1}.pdf".format(os.getcwd(), fn))
+        plt.show()
