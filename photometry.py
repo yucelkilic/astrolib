@@ -17,13 +17,18 @@ import numpy as np
 import os
 import glob
 import time
-import sys
 import matplotlib.pyplot as plt
+
+from astropy.utils.exceptions import AstropyWarning
+import warnings
+
 try:
     import f2n
 except ImportError:
     print('Python cannot import f2n. Make sure f2n is installed.')
     raise SystemExit
+
+warnings.simplefilter('ignore', category=AstropyWarning)
 
 
 class PhotOps:
@@ -35,11 +40,10 @@ class PhotOps:
                                          "#"*block + "-"*(length-block),
                                          round(progress*100, 2))
         if progress >= 1:
-            msg += " DONE\r\n"
+            msg += "\nDONE\r\n"
 
-        sys.stdout.write(msg)
-        sys.stdout.flush()
-
+        print(msg)
+        
     def phot(self, image_path,
              x_coor, y_coor,
              aper_radius=3.0,

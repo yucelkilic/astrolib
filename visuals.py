@@ -21,6 +21,11 @@ import os
 from astropy.wcs import WCS
 # from astropy.utils.data import get_pkg_data_filename
 
+from astropy.utils.exceptions import AstropyWarning
+import warnings
+
+warnings.simplefilter('ignore', category=AstropyWarning)
+
 
 class StarPlot:
 

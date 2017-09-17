@@ -21,7 +21,6 @@ import numpy as np
 
 import sep
 import os
-import sys
 import time
 import glob
 from astropy.utils.exceptions import AstropyWarning
