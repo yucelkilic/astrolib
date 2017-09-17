@@ -71,6 +71,7 @@ class PhotOps:
 
     def asteroids_phot(self, image_path,
                        multi_object=True,
+                       target=None,
                        aper_radius=6.0,
                        radius=10, gain=0.57, max_mag=20):
 
@@ -102,7 +103,10 @@ class PhotOps:
             naxis1 = fo.get_header('naxis1')
             naxis2 = fo.get_header('naxis2')
             odate = fo.get_header('date-obs')
-            objct = fo.get_header('object')
+            if target is None:
+                objct = fo.get_header('object')
+            else:
+                objct = str(target)
             filter = fo.get_header('filter').replace(" ", "_")
             # t1 = Time(odate.replace('T', ' '))
             # exptime = fo.get_header('exptime')
@@ -263,6 +267,9 @@ class PhotOps:
 
                     np_phot_res = np.array(phot_res_list)
 
+                    if len(np_phot_res) == 0:
+                        continue
+
                     # magnitude average
                     mag_t_avr = np.average(np_phot_res[:, 6].astype(float),
                                            weights=np_phot_res[:, 7].astype(
@@ -326,7 +333,8 @@ class PhotOps:
                             os.getcwd(),
                             asteroids['num'][i]), 'a') as f_handle:
                         f_handle.seek(0, os.SEEK_END)
-                        if id == 0:
+
+                        if not os.path.isfile(str(f_handle)):
                             phot_res_table.write(
                                 f_handle,
                                 format='ascii.commented_header')

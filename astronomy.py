@@ -7,6 +7,8 @@ from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric
 from astropy.table import Table, Column
+from ccdproc import ImageFileCollection
+import ccdproc
 
 from pyraf import iraf
 
@@ -18,11 +20,19 @@ from os import path, system, getcwd
 import numpy as np
 
 import sep
+import os
+import sys
+import time
+import glob
+from astropy.utils.exceptions import AstropyWarning
+import warnings
+# import ds9
 
- 
+
 class FitsOps:
 
     def __init__(self, file_name):
+        warnings.simplefilter('ignore', category=AstropyWarning)
         self.file_name = file_name
         self.timeops = TimeOps()
         self.hdu = fits.open(self.file_name, "readonly")
@@ -71,6 +81,23 @@ NET {6}""".format(code, observer, observer, tel,
         try:
             header_key = self.hdu[0].header[key]
             return(header_key)
+        except Exception as e:
+            print(e)
+
+    def update_header(self, key, value):
+
+        """
+        Updates requested keyword from FITS header.
+
+        @param key: Requested keyword.
+        @type key: str
+        @return: str
+        """
+
+        try:
+            hdu = fits.open(self.file_name, mode='update')
+            hdu[0].header[key] = value
+            return(hdu.close())
         except Exception as e:
             print(e)
 
@@ -953,3 +980,193 @@ class TimeOps:
 
         except Exception as e:
             print(e)
+
+
+class RedOps:
+
+    def update_progress(self, job_title, progress):
+        length = 20
+        block = int(round(length * progress))
+        msg = "\r{0}: [{1}] {2}%".format(job_title,
+                                         "#"*block + "-"*(length-block),
+                                         round(progress*100, 2))
+        if progress >= 1:
+            msg += "\nDONE\r\n"
+
+        print(msg)
+
+    def make_zero(self, image_path, out_file=False,
+                  gain=0.57, readnoise=4.11):
+
+        # regular expression of files (e.g bias_00*.fits, flat-2000jan01_?.*)
+        # list of files that match that regular expression
+        images = ImageFileCollection(image_path, keywords='*')
+        
+        bias_list = []
+        if len(images.files_filtered(imagetyp='Bias')) == 0:
+            print("Could not find any BIAS file!")
+            raise SystemExit
+
+        for filename in images.files_filtered(imagetyp='Bias'):
+            ccd = ccdproc.CCDData.read(images.location + filename,
+                                       unit=u.adu)
+            
+            data_with_deviation = ccdproc.create_deviation(
+                ccd,
+                gain=gain * u.electron/u.adu,
+                readnoise=readnoise * u.electron)
+            
+            gain_corrected = ccdproc.gain_correct(data_with_deviation,
+                                                  gain*u.electron/u.adu)
+            
+            bias_list.append(gain_corrected)
+
+        master_bias = ccdproc.combine(bias_list, method='median')
+        
+        if out_file:
+            head, tail = os.path.split(image_path)
+            master_bias.write("{0}/master_bias.fits".format(head),
+                              clobber=True)
+
+        print(">>> Master bias file is created.")
+        return(master_bias)
+
+    def make_flat(self, image_path, out_file=False, filter="R",
+                  master_bias=None,
+                  gain=0.57, readnoise=4.11):
+
+        # regular expression of files (e.g bias_00*.fits, flat-2000jan01_?.*)
+        # list of files that match that regular expression
+        images = ImageFileCollection(image_path, keywords='*')
+
+        # create the flat fields
+        flat_list = []
+        
+        if len(images.files_filtered(imagetyp='Flat')) == 0:
+            print("Could not find any FLAT file with {0} filter!".format(
+                filter))
+            raise SystemExit
+            return(False)
+
+        for filename in images.files_filtered(imagetyp='Flat',
+                                              filter=filter):
+            ccd = ccdproc.CCDData.read(images.location + filename,
+                                       unit=u.adu)
+
+            data_with_deviation = ccdproc.create_deviation(
+                ccd,
+                gain=gain * u.electron/u.adu,
+                readnoise=readnoise * u.electron)
+
+            gain_corrected = ccdproc.gain_correct(data_with_deviation,
+                                                  gain*u.electron/u.adu)
+
+            if master_bias:
+                gain_corrected = ccdproc.subtract_bias(gain_corrected,
+                                                       master_bias)
+            flat_list.append(gain_corrected)
+
+        master_flat = ccdproc.combine(flat_list, method='median')
+
+        if out_file:
+            head, tail = os.path.split(image_path)
+            master_flat.write("{0}/master_flat.fits".format(head),
+                              clobber=True)
+
+        print(">>> Master flat file is created.")
+        return(master_flat)
+        
+    def ccdproc(self, image_path, gain=0.57, readnoise=4.11,
+                cosmic_correct=True,
+                objects=None, filters=None, fits_section=None):
+
+        chk = sorted(glob.glob("{0}/*.fit?".format(image_path)))
+
+        if len(chk) == 0:
+            print("No FITS image found in {0}!".format(image_path))
+            raise SystemExit
+
+        atmp = "{0}/atmp/".format(os.getcwd())
+
+        # create tmp working dir.
+        os.system("rm -rf {0}".format(atmp))
+        os.makedirs(atmp)
+
+        # copy all files to temp
+
+        os.system("cp -rv {0}/*.fits {1}".format(image_path, atmp))
+        print(">>> Scientific images are copied!")
+
+        if not os.path.exists("{0}/BDF/".format(
+                os.path.dirname(image_path.rstrip('/')))):
+            print("BDF directory does not exist!")
+            raise SystemExit
+
+        os.system("cp -rv {0}/BDF/*.fits {1}".format(
+            os.path.dirname(image_path.rstrip('/')),
+            atmp))
+        
+        print(">>> Calibration images are copied!")
+
+        fitslist = sorted(glob.glob("{0}/*.fit?".format(atmp)))
+
+        for fits_file in fitslist:
+            fo = FitsOps(fits_file)
+            # Extract RA and DEC coordinates from header
+            try:
+                fltr = fo.get_header('filter')
+            except:
+                continue
+
+            if " " in fltr:
+                fltr = fltr.split(" ")[1]
+                fo.update_header('filter', fltr)
+
+        images = ImageFileCollection(atmp, keywords='*')
+
+        master_zero = self.make_zero(atmp)
+        master_flat = self.make_flat(atmp, master_bias=master_zero)
+        img_count = len(images.files_filtered(imagetyp='Light'))
+
+        for id, filename in enumerate(
+                images.files_filtered(imagetyp='Light')):
+
+            print(">>> ccdproc is working for: {0}".format(filename))
+            
+            hdu = fits.open(images.location + filename)
+            ccd = ccdproc.CCDData(hdu[0].data,
+                                  header=hdu[0].header+hdu[0].header,
+                                  unit=u.adu)
+
+            data_with_deviation = ccdproc.create_deviation(
+                ccd,
+                gain=gain * u.electron/u.adu,
+                readnoise=readnoise * u.electron)
+
+            gain_corrected = ccdproc.gain_correct(data_with_deviation,
+                                                  gain*u.electron/u.adu)
+
+            print("    [*] Gain correction is done.")
+
+            if cosmic_correct:
+                cr_cleaned = ccdproc.cosmicray_lacosmic(gain_corrected,
+                                                        sigclip=5)
+                print("    [*] Cosmic correction is done.")
+            else:
+                del gain_corrected
+                cr_cleaned = gain_corrected
+
+            bias_subtracted = ccdproc.subtract_bias(cr_cleaned, master_zero)
+            print("    [*] Bias correction is done.")
+            reduced_image = ccdproc.flat_correct(bias_subtracted, master_flat,
+                                                 min_value=0.9)
+            print("    [*] Flat correction is done.")
+
+            reduced_image.write('{0}/bf_{1}'.format(atmp, filename),
+                                clobber=True)
+            time.sleep(0.2)
+            self.update_progress(
+                "    [*] ccdproc is done for: {0}".format(filename),
+                (id + 1) / img_count)
+        os.system("rm -rf !({0}/bf_*)".format(atmp))
+        return(True)
