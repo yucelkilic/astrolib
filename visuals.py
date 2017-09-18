@@ -246,7 +246,7 @@ class StarPlot:
         @return: str
         """
 
-        print("Plotting asteroids LC...")
+        print("Plotting asteroid's LC...")
 
         fn = os.path.basename(result_file_path).split('.')[0]
 

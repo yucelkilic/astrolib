@@ -507,9 +507,13 @@ ap.asteroids_plot(ra="20 11 38.6159",
 # FITS Data Reduction with ccdproc <a class="anchor" id="ccdproc"></a>
 
 This class provides simple FITS image data reduction with [ccdproc](http://ccdproc.readthedocs.io/en/latest/). In order to use RedOps() class of my astrolib, you should have special directory tree like this;
+
+```python
 dir/
 |    \
 BDF/  SCI_IMAGES
+```
+
 Now, you are ready to use RedOps.ccdproc function;
 
 
@@ -569,7 +573,7 @@ plc.lc_plot("43032.txt")
     Photometry done!: [####################] 100%
     DONE
     
-    Plotting asteroids LC...
+    Plotting asteroid's LC...
 
 ![png](tutorials/output_40_2.png)
 
