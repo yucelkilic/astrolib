@@ -174,7 +174,6 @@ class PhotOps:
                                               order=['num']))
                     mask = asteroids['num'] == str(objct).upper()
                     asteroids = asteroids[mask]
-                    print(asteroids)
             elif request[0] is False:
                 print(request[1])
                 raise SystemExit

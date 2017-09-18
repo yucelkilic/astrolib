@@ -11,6 +11,7 @@ And here are our dependencies for this library:
 * [sep](https://sep.readthedocs.io/en/v1.0.x/)
 * [matplotlib](http://matplotlib.org)
 * [astroquery](http://astroquery.readthedocs.io/en/latest/)
+* [ccdproc](http://ccdproc.readthedocs.io/en/latest/)
 
 # Table of Contents:
 * [Structure of Module](#structure)
@@ -23,20 +24,24 @@ And here are our dependencies for this library:
 * [Solve field with astrometry.net](#solve-field)
 * [Plot Asteroids](#plot-asteroids)
 * [Plot Asteroids without a FITS File](#plot-asteroids-without-fits)
+* [FITS Data Reduction with ccdproc](#ccdproc)
+* [Photometry of an asteroid](#ast_phot)
 
 
 # Structure of Module <a class="anchor" id="structure"></a>
 astrolib
 |
-|---->astronomy.py
+|----> astronomy.py
 |
-|---->catalog.py
+|----> catalog.py
 |
-|---->io.py
+|----> io.py
 |
-|---->visuals.py
-
+|----> visuals.py
+|
+|----> photometry.py
 For detailed information and help give help(module_name) command in the command line.
+
 # Introduction <a class="anchor" id="introduction"></a>
 
 Here I created help documentation for the commands I use the frequently. You can work the same way for others. You can find detailed help in the code.
@@ -56,7 +61,7 @@ print(ds)
 
     The autoreload extension is already loaded. To reload it, use:
       %reload_ext autoreload
-      
+
     10 objects detected.
         thresh    npix tnpix xmin xmax ... ypeak flag    ra_calc       dec_calc   
     ------------- ---- ----- ---- ---- ... ----- ---- ------------- --------------
@@ -102,10 +107,14 @@ fo.detect_sources(plot=True, max_sources=10)
 ```
 
 
-![png](tutorials/output_10_0.png)
+![png](tutorials/output_11_0.png)
 
 
     10 objects detected.
+
+
+
+
 
 &lt;Table length=10&gt;
 <table id="table4714975184" class="table-striped table-bordered table-condensed">
@@ -135,6 +144,8 @@ q.gaia_query(306.77168051, -23.47029011, 0.1, max_sources=5)
 ```
 
 
+
+
 &lt;Table masked=True length=5&gt;
 <table id="table4585081320" class="table-striped table-bordered table-condensed">
 <thead><tr><th>Source</th><th>RA_ICRS</th><th>DE_ICRS</th><th>e_RA_ICRS</th><th>e_DE_ICRS</th><th>__Gmag_</th><th>pmRA</th><th>pmDE</th><th>e_pmRA</th><th>e_pmDE</th><th>Epoch</th><th>Plx</th></tr></thead>
@@ -147,16 +158,13 @@ q.gaia_query(306.77168051, -23.47029011, 0.1, max_sources=5)
 <tr><td>6849535056782354560</td><td>306.7183059223</td><td>-23.5126694863</td><td>0.196</td><td>0.133</td><td>17.308</td><td>--</td><td>--</td><td>--</td><td>--</td><td>2015.0</td><td>--</td></tr>
 </table>
 
-
 If you just want to query the target object, reduce the radius like;
-
 
 ```python
 from astrolib import catalog
 q = catalog.Query()
 q.gaia_query(306.77168051, -23.47029011, 0.01, max_sources=5)
 ```
-
 
 &lt;Table masked=True length=1&gt;
 <table id="table4801240648" class="table-striped table-bordered table-condensed">
@@ -169,14 +177,20 @@ q.gaia_query(306.77168051, -23.47029011, 0.01, max_sources=5)
 
 # Matching with GAIA DR1 <a class="anchor" id="gaia-match"></a>
 
-
 ```python
 q.match_catalog("108hecuba-001_R_affineremap.fits", plot=True, max_sources=10)
 ```
 
+
     10 objects detected.
 
-![png](tutorials/output_16_3.png)
+
+    /usr/local/lib/python3.6/site-packages/numpy/core/numeric.py:531: UserWarning: Warning: converting a masked element to nan.
+      return array(a, dtype, copy=False, order=order)
+
+
+
+![png](tutorials/output_17_3.png)
 
 
     Matched objects: 9
@@ -217,7 +231,9 @@ ac = astronomy.AstCalc()
 ac.ccmap(objects_matrix, "./108hecuba-001_R.fits", ppm_parallax_cor=False)
 ```
 
+
     20 objects detected.
+
     Matched objects: 19
     Refsystem: icrs  Coordinates: equatorial ICRS
         Equinox: J2000.000 Epoch: J2000.00000000 MJD: 51544.50000
@@ -238,7 +254,6 @@ ac.ccmap(objects_matrix, "./108hecuba-001_R.fits", ppm_parallax_cor=False)
     Wcs mapping status
         Ra/Dec or Long/Lat wcs rms: 0.038  0.0485   (arcsec  arcsec)
     Updating image header wcs
-
 
 &lt;Table length=3&gt;
 <table id="table4757776088" class="table-striped table-bordered table-condensed">
@@ -338,7 +353,6 @@ ac.ccmap(objects_matrix, "./108hecuba-001_R.fits", ppm_parallax_cor=False, stdou
 
 But this solution does not include parallax and proper motion correction. To include these corrections;
 
-
 ```python
 ac.ccmap(objects_matrix, "./108hecuba-001_R.fits", ppm_parallax_cor=True)
 ```
@@ -362,8 +376,7 @@ ac.ccmap(objects_matrix, "./108hecuba-001_R.fits", ppm_parallax_cor=True)
     Wcs mapping status
         Ra/Dec or Long/Lat wcs rms: 0.0377  0.0486   (arcsec  arcsec)
     Updating image header wcs
-
-
+    
 &lt;Table length=3&gt;
 <table id="table4758064544" class="table-striped table-bordered table-condensed">
 <thead><tr><th>Ra/Dec or Long/Lat fit rms</th><th>Ra/Dec or Long/Lat wcs rms</th><th>Reference point (RA, DEC)</th><th>Reference point (X, Y)</th><th>X and Y scale</th><th>X and Y axis rotation</th></tr></thead>
@@ -393,7 +406,6 @@ where the coordinates x, y, z of the Earth are expressed in astronomical units a
 
 *Ref: Kovalevsky, J., & Seidelmann, P. (2004). Fundamentals of Astrometry. Cambridge: Cambridge University Press. doi:10.1017/CBO9781139106832*
 
-
 # Solve field with astrometry.net <a class="anchor" id="solve-field"></a>
 
 
@@ -412,6 +424,7 @@ dec = fo.get_header('objctdec')
 # Please provide image path, so ./ is important!
 ac.solve_field("./5247_0007_R.fits", ra=ra, dec=dec)
 ```
+
     Image has been solved!
 
     True
@@ -429,6 +442,9 @@ pwd
 cp -rv 5247_0007_R.new 5247_0007_R_new.fits
 ```
 
+    5247_0007_R.new -> 5247_0007_R_new.fits
+
+
 # Plot Asteroids <a class="anchor" id="plot-asteroids"></a>
 
 You may want to plot asteroids, comets etc. on FITS image. Especially this can be very useful to find the moving objects in asteroid observations. Note that in the header of the FITS file, there must be RA, DEC, and DATE-OBS keywords. This code has made use of [IMCCE's SkyBoT VO tool](http://vo.imcce.fr/webservices/skybot/).
@@ -442,18 +458,19 @@ ap = visuals.StarPlot()
 ap.asteroids_plot("./5247_0007_R_new.fits", time_travel=4)
 ```
 
-![png](tutorials/output_30_1.png)
+
+![png](tutorials/output_31_1.png)
 
 
     num   name      ra(h)       dec(deg)    class   m_v  err(arcsec) d(arcsec)
     ---- ------ ------------- ------------ -------- ---- ----------- ---------
     5247 Krylov 20 58 36.6685 +26 02 0.871 MB>Inner 15.3       0.040   159.851
-    
+
     True
 
 # Plot Asteroids without a FITS File <a class="anchor" id="plot-asteroids-without-fits"></a>
 
-Suppose that you do not have a FITS file, but you want to plot asteroids in the field of view (in arcmin) that you want at a particular time in a particular region. Then you should have indicated the coordinates of the region (RA, DEC) and the time of observation you wanted. Note that, time_travel parameter expresses the approximate observation time duration in hours.
+Suppose that you do not have a FITS file, but you want to plot asteroids in the field of view (in arcmin) that you want at a particular time in a particular region. Then you should have indicated the coordinates of the region (RA, DEC) and the time of observation you wanted. No that, time_travel parameter expresses the approximate observation time duration in hours.
 
 
 ```python
@@ -471,8 +488,7 @@ ap.asteroids_plot(ra="20 11 38.6159",
     Target Coordinates: 20:11:38.6159 -07:09:12.734 in 21 arcmin
 
 
-
-![png](tutorials/output_32_1.png)
+![png](tutorials/output_33_1.png)
 
 
      num      name        ra(h)        dec(deg)   ... m_v  err(arcsec) d(arcsec)
@@ -488,4 +504,75 @@ ap.asteroids_plot(ra="20 11 38.6159",
 
     True
 
+# FITS Data Reduction with ccdproc <a class="anchor" id="ccdproc"></a>
+
+This class provides simple FITS image data reduction with [ccdproc](http://ccdproc.readthedocs.io/en/latest/). In order to use RedOps() class of my astrolib, you should have special directory tree like this;
+dir/
+|    \
+BDF/  SCI_IMAGES
+Now, you are ready to use RedOps.ccdproc function;
+
+
 ```python
+from astrolib import astronomy
+import glob
+ro = astronomy.RedOps()
+ro.ccdproc("./data/20160415N/43032/")
+```
+
+    >>> Scientific images are copied!
+    >>> Calibration images are copied!
+    >>> Master bias file is created.
+    >>> Master flat file is created.
+    >>> ccdproc is working for: 43032_0001_R_new.fits
+        [*] Gain correction is done.
+        [*] Cosmic correction is done.
+        [*] Bias correction is done.
+        [*] Flat correction is done.
+        [*] ccdproc is done for: 43032_0001_R_new.fits: [#-------------------] 2.63%
+    >>> ccdproc is working for: 43032_0002_R_new.fits
+        [*] Gain correction is done.
+        [*] Cosmic correction is done.
+        [*] Bias correction is done.
+        [*] Flat correction is done.
+        ...
+    >>> ccdproc is working for: 43032_0042_R_new.fits
+        [*] Gain correction is done.
+        [*] Cosmic correction is done.
+        [*] Bias correction is done.
+        [*] Flat correction is done.
+        [*] ccdproc is done for: 43032_0042_R_new.fits: [####################] 100.0%
+    DONE
+
+    True
+
+You will find your calibrated images under *atmp/* directory as named "bf_" prefix.
+
+# Photometry of an asteroid <a class="anchor" id="ast_phot"></a>
+
+If you want to apply asteroid photometry on a squential FITS images give this commands. Don't forget! All images must have WCS keywords and astrometrically solved. If you change the "multi_object" value as True, asteroids_phot function will perform photometry to all asteroids in the frame queried from SkyBoT.
+
+
+```python
+from astrolib import photometry
+from astrolib import visuals
+import glob
+ap = photometry.PhotOps()
+plc = visuals.StarPlot()
+ap.asteroids_phot("atmp/*.fits", multi_object=False)
+# For plotting ligt curve of results.
+plc.lc_plot("43032.txt")
+```
+
+    Photometry is done for: atmp/43032_0011_R_new.fits: [--------------------] 0.0%
+    ...
+    Photometry done!: [####################] 100%
+    DONE
+    
+    Plotting asteroids LC...
+
+![png](tutorials/output_40_2.png)
+
+```python
+
+```
