@@ -90,6 +90,8 @@ NET {6}""".format(code, observer, observer, tel,
 
         @param key: Requested keyword.
         @type key: str
+        @param value: Value that will be updated.
+        @type key: str
         @return: str
         """
 
@@ -984,6 +986,16 @@ class TimeOps:
 class RedOps:
 
     def update_progress(self, job_title, progress):
+
+        """
+        Update for progress.
+        @param job_title: Progress bar's title.
+        @type job_title: str
+        @param progress: Progress bar's status value.
+        @type progres: int
+        @return: str
+        """
+
         length = 20
         block = int(round(length * progress))
         msg = "\r{0}: [{1}] {2}%".format(job_title,
@@ -993,12 +1005,24 @@ class RedOps:
             msg += "\nDONE\r\n"
 
         print(msg)
+        return(msg)
 
     def make_zero(self, image_path, out_file=False,
                   gain=0.57, readnoise=4.11):
 
-        # regular expression of files (e.g bias_00*.fits, flat-2000jan01_?.*)
-        # list of files that match that regular expression
+        """
+        Creates master bias file.
+        @param image_path: Directory of Bias FITS files.
+        @type image_path: path
+        @param out_file: Save master bias file?
+        @type out_file: boolean
+        @param gain: gain value for the image expressed in electrons per adu.
+        @type gain: float
+        @param readnoise: Read noise for the observations (in electrons).
+        @type readnoise: float
+        @return: bolean
+        """
+    
         images = ImageFileCollection(image_path, keywords='*')
         
         bias_list = []
@@ -1034,8 +1058,23 @@ class RedOps:
                   master_bias=None,
                   gain=0.57, readnoise=4.11):
 
-        # regular expression of files (e.g bias_00*.fits, flat-2000jan01_?.*)
-        # list of files that match that regular expression
+        """
+        Creates master flat file.
+        @param image_path: Directory of Bias FITS files.
+        @type image_path: path
+        @param out_file: Save master flat file?
+        @type out_file: boolean
+        @param filter: Flat filter.
+        @type filter: str
+        @param master_bias: master bias data (array)
+        @type master_bias: array
+        @param gain: gain value for the image expressed in electrons per adu.
+        @type gain: float
+        @param readnoise: Read noise for the observations (in electrons).
+        @type readnoise: float
+        @return: bolean
+        """
+
         images = ImageFileCollection(image_path, keywords='*')
 
         # create the flat fields
@@ -1075,10 +1114,38 @@ class RedOps:
         print(">>> Master flat file is created.")
         return(master_flat)
         
-    def ccdproc(self, image_path, gain=0.57, readnoise=4.11,
+    def ccdproc(self, image_path,
                 cosmic_correct=True,
-                objects=None, filters=None, fits_section=None):
+                filters=None,
+                oscan_cor=None,
+                trim=None,
+                gain=0.57,
+                readnoise=4.11):
 
+        """
+        Substract master bias and flat from raw FITS file.
+        @param image_path: Directory of Bias FITS files.
+        @type image_path: path
+        @param cosmic_correct: Apply cosmic ray correction.
+        @type cosmic_correct: boolean
+        @param filter: FITS image filter.
+        @type filter: str
+        @param gain: gain value for the image expressed in electrons per adu.
+        @type gain: float
+        @param oscan_cor: For none overscan correction, set to None.
+        Otherwise provide a region of ccd from which the overscan is extracted,
+        using the FITS conventions for index order and index start, or a
+        slice from ccd that contains the overscan.
+        @type oscan_cor: str or None
+        @param trim: For no trim correction, set to None. Otherwise provide
+        a region of ccd from which the image should be trimmed, using the FITS
+        conventions for index order and index start.
+        @type trim: str or None
+        @param readnoise: Read noise for the observations (in electrons).
+        @type readnoise: float
+        @return: bolean
+        """
+        
         chk = sorted(glob.glob("{0}/*.fit?".format(image_path)))
 
         if len(chk) == 0:
@@ -1154,6 +1221,21 @@ class RedOps:
             else:
                 del gain_corrected
                 cr_cleaned = gain_corrected
+
+            if oscan_cor:
+                oscan_subtracted = ccdproc.subtract_overscan(
+                    cr_cleaned,
+                    fits_section=oscan_cor,
+                    overscan_axis=1)
+                del cr_cleaned
+                cr_cleaned = oscan_subtracted
+
+            if trim:
+                trimmed = ccdproc.trim_image(oscan_subtracted,
+                                             fits_section=trim)
+
+                del oscan_subtracted
+                cr_cleaned = trimmed
 
             bias_subtracted = ccdproc.subtract_bias(cr_cleaned, master_zero)
             print("    [*] Bias correction is done.")

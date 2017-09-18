@@ -19,21 +19,26 @@ import glob
 import time
 import matplotlib.pyplot as plt
 
-from astropy.utils.exceptions import AstropyWarning
-import warnings
-
 try:
     import f2n
 except ImportError:
     print('Python cannot import f2n. Make sure f2n is installed.')
     raise SystemExit
 
-warnings.simplefilter('ignore', category=AstropyWarning)
-
 
 class PhotOps:
 
     def update_progress(self, job_title, progress):
+
+        """
+        Update for progress.
+        @param job_title: Progress bar's title.
+        @type job_title: str
+        @param progress: Progress bar's status value.
+        @type progres: int
+        @return: str
+        """
+
         length = 20
         block = int(round(length * progress))
         msg = "\r{0}: [{1}] {2}%".format(job_title,
@@ -47,8 +52,21 @@ class PhotOps:
     def phot(self, image_path,
              x_coor, y_coor,
              aper_radius=3.0,
-             gain=1.0):
+             gain=0.57):
 
+        """
+        Photometry of given coordinates.
+        @param image_path: Path of FITS file.
+        @type image_path: path
+        @param x_coor: X coordinate of object
+        @type x_coor: float
+        @param y_coor: Y coordinate of object
+        @type y_coor: float
+        @param aper_radius: Aperture radius
+        @type aper_radius: float
+        @return: tuple
+        """
+        
         if image_path:
             hdu = fits.open(image_path)[0]
         else:
@@ -79,6 +97,24 @@ class PhotOps:
                        aper_radius=6.0,
                        radius=10, gain=0.57, max_mag=20):
 
+        """
+        Photometry of asteroids.
+        @param image_path: Path of FITS file.
+        @type image_path: path
+        @param multi_object: Apply photometry for other asteroids in the frame?
+        @type multi_object: float
+        @param target: Target object that photometry applied. If None,
+        will be taken form FITS header.
+        @type target: float
+        @param aper_radius: Aperture radius
+        @type aper_radius: float
+        @param gain: gain value for the image expressed in electrons per adu.
+        @type gain: float
+        @param max_mag: Faintest object limit.
+        @type max_mag: float
+        @return: bolean and file
+        """
+        
         if ".fit" in os.path.basename(image_path):
             fitslist = sorted(glob.glob(image_path))
             if fitslist == 0:

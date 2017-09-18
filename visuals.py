@@ -21,11 +21,6 @@ import os
 from astropy.wcs import WCS
 # from astropy.utils.data import get_pkg_data_filename
 
-from astropy.utils.exceptions import AstropyWarning
-import warnings
-
-warnings.simplefilter('ignore', category=AstropyWarning)
-
 
 class StarPlot:
 
@@ -233,6 +228,23 @@ class StarPlot:
                 errcol='mag_t_std',
                 mark_color="blue",
                 bar_color="red"):
+
+        """
+        Plot light curve of photometry result.
+        @param result_file_path: Result file path
+        @type result_file_path: path
+        @param xcol: X-axis data for plotting
+        @type xcol: array
+        @param ycol: Y-axis data for plotting
+        @type ycol: array
+        @param errcol: Error bar data for plotting
+        @type errcol: array
+        @param mark_color: Marker color
+        @type mark_color: str
+        @param bar_color: Bar marker color
+        @type bar_color: str
+        @return: str
+        """
 
         print("Plotting asteroids LC...")
 
