@@ -577,6 +577,4 @@ plc.lc_plot("43032.txt")
 
 ![png](tutorials/output_40_2.png)
 
-```python
-
-```
+To be continued! :)
