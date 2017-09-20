@@ -1049,12 +1049,12 @@ class RedOps:
         if out_file:
             head, tail = os.path.split(image_path)
             master_bias.write("{0}/master_bias.fits".format(head),
-                              clobber=True)
+                              overwrite=True)
 
         print(">>> Master bias file is created.")
         return(master_bias)
 
-    def make_flat(self, image_path, out_file=False, filter="R",
+    def make_flat(self, image_path, out_file=False, filter=None,
                   master_bias=None,
                   gain=0.57, readnoise=4.11):
 
@@ -1080,7 +1080,8 @@ class RedOps:
         # create the flat fields
         flat_list = []
         
-        if len(images.files_filtered(imagetyp='Flat')) == 0:
+        if len(images.files_filtered(imagetyp='Flat',
+                                     filter=filter)) == 0:
             print("Could not find any FLAT file with {0} filter!".format(
                 filter))
             raise SystemExit
@@ -1109,14 +1110,14 @@ class RedOps:
         if out_file:
             head, tail = os.path.split(image_path)
             master_flat.write("{0}/master_flat.fits".format(head),
-                              clobber=True)
+                              overwrite=True)
 
         print(">>> Master flat file is created.")
         return(master_flat)
         
     def ccdproc(self, image_path,
                 cosmic_correct=True,
-                filters=None,
+                filter=None,
                 oscan_cor=None,
                 trim=None,
                 gain=0.57,
@@ -1191,11 +1192,14 @@ class RedOps:
         images = ImageFileCollection(atmp, keywords='*')
 
         master_zero = self.make_zero(atmp)
-        master_flat = self.make_flat(atmp, master_bias=master_zero)
-        img_count = len(images.files_filtered(imagetyp='Light'))
+        master_flat = self.make_flat(atmp, master_bias=master_zero,
+                                     filter=filter)
+        img_count = len(images.files_filtered(imagetyp='Light',
+                                              filter=filter))
 
         for id, filename in enumerate(
-                images.files_filtered(imagetyp='Light')):
+                images.files_filtered(imagetyp='Light',
+                                      filter=filter)):
 
             print(">>> ccdproc is working for: {0}".format(filename))
             
@@ -1244,10 +1248,9 @@ class RedOps:
             print("    [*] Flat correction is done.")
 
             reduced_image.write('{0}/bf_{1}'.format(atmp, filename),
-                                clobber=True)
+                                overwrite=True)
             time.sleep(0.2)
             self.update_progress(
                 "    [*] ccdproc is done for: {0}".format(filename),
                 (id + 1) / img_count)
-        os.system("rm -rf !({0}/bf_*)".format(atmp))
         return(True)

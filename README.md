@@ -413,12 +413,6 @@ where the coordinates x, y, z of the Earth are expressed in astronomical units a
 from astrolib import astronomy
 
 ac = astronomy.AstCalc()
-# Read a FITS file without WCS information
-fo = astronomy.FitsOps('./5247_0007_R.fits')
-
-# Extract RA and DEC coordinates from header
-ra = fo.get_header('objctra')
-dec = fo.get_header('objctdec')
 
 # Solve field with astrometry.net
 # Please provide image path, so ./ is important!
