@@ -13,6 +13,7 @@ from os import system
 class Query:
 
     def gaia_query(self, ra_deg, dec_deg, rad_deg, max_mag=20,
+                   max_coo_err=1,
                    max_sources=100):
 
         """
@@ -24,6 +25,8 @@ class Query:
         @type dec_deg: float
         @param max_mag: Limit G magnitude to be queried object(s)
         @type max_mag: float
+        @max_coo_err: Max error of position
+        @type max_coo_err: float
         @max_sources: Maximum number of sources
         @type max_sources: int
         @returns: astropy.table object
@@ -36,7 +39,11 @@ class Query:
                                  'e_pmRA', 'e_pmDE',
                                  'Epoch', 'Plx'],
                         column_filters={"phot_g_mean_mag":
-                                        ("<{:f}".format(max_mag))},
+                                        ("<{:f}".format(max_mag)),
+                                        "e_RA_ICRS":
+                                        ("<{:f}".format(max_coo_err)),
+                                        "e_DE_ICRS":
+                                        ("<{:f}".format(max_coo_err))},
                         row_limit=max_sources)
  
         field = coord.SkyCoord(ra=ra_deg, dec=dec_deg,
