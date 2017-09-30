@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import print_function
+
 from astropy import coordinates
 from astropy import units as u
 from astropy.wcs import WCS
@@ -25,7 +27,6 @@ import time
 import glob
 from astropy.utils.exceptions import AstropyWarning
 import warnings
-# import ds9
 
 
 class FitsOps:
