@@ -213,7 +213,7 @@ class PhotOps:
                     snr = []
                     for aper in range(30):
                         # phot asteroids
-                        flux, fluxerr, flag = sep.sum_circle(
+                        flux_test, fluxerr_test, flag_test = sep.sum_circle(
                             data_sub,
                             a_x,
                             a_y,
@@ -221,7 +221,7 @@ class PhotOps:
                             err=bkg.globalrms,
                             gain=gain)
 
-                        snr.append([aper, (flux/fluxerr)])
+                        snr.append([aper, (flux_test/fluxerr_test)])
 
                     npsnr = np.array(snr)
                     plt.title(asteroids['num'][i])

@@ -195,7 +195,7 @@ class AstCalc:
         """
 
         try:
-            mag = 25 - 2.5 * math.log10(flux)
+            mag = -2.5 * math.log10(flux)
             return(mag)
         except Exception as e:
             print(e)
