@@ -18,6 +18,7 @@ import os
 import glob
 import time
 import matplotlib.pyplot as plt
+from .peakdetect import peakdet
 
 try:
     import f2n
@@ -94,8 +95,9 @@ class PhotOps:
     def asteroids_phot(self, image_path,
                        multi_object=True,
                        target=None,
-                       aper_radius=6.0,
-                       radius=10, gain=0.57, max_mag=20):
+                       aper_radius=None,
+                       plot_aper_test=False,
+                       radius=11, gain=0.57, max_mag=20):
 
         """
         Photometry of asteroids.
@@ -108,6 +110,8 @@ class PhotOps:
         @type target: float
         @param aper_radius: Aperture radius
         @type aper_radius: float
+        @param plot_aper_test: Plot aperture test graph
+        @type plot_aper_test: bloean
         @param gain: gain value for the image expressed in electrons per adu.
         @type gain: float
         @param max_mag: Faintest object limit.
@@ -202,7 +206,7 @@ class PhotOps:
                         data_sub,
                         a_x,
                         a_y,
-                        aper_radius,
+                        6,
                         err=bkg.globalrms,
                         gain=gain)
 
@@ -210,27 +214,38 @@ class PhotOps:
                         print("Bad asteroid selected (out of frame!)!")
                         raise SystemExit
 
-                    snr = []
-                    for aper in range(30):
-                        # phot asteroids
-                        flux_test, fluxerr_test, flag_test = sep.sum_circle(
-                            data_sub,
-                            a_x,
-                            a_y,
-                            aper,
-                            err=bkg.globalrms,
-                            gain=gain)
+                    if id == 0:
+                        snr = []
+                        for aper in range(30):
+                            # phot asteroids
+                            flux_test, fluxerr_test, flag_test = sep.sum_circle(
+                                data_sub,
+                                a_x,
+                                a_y,
+                                aper,
+                                err=bkg.globalrms,
+                                gain=gain)
 
-                        snr.append([aper, (flux_test/fluxerr_test)])
+                            snr.append([aper, (flux_test/fluxerr_test)])
 
-                    npsnr = np.array(snr)
-                    plt.title(asteroids['num'][i])
-                    plt.xlabel('Aperture (px)')
-                    plt.ylabel('SNR')
-                    plt.scatter(npsnr[:, 0],
-                                npsnr[:, 1])
-
-                    plt.show()
+                        npsnr = np.array(snr)
+                        maxtab, mintab = peakdet(npsnr[:, 1], 0.1)
+                        aper_radius = maxtab[:, 0][0]
+                        print("Aperture calculated: {0} px".format(
+                            aper_radius))
+                        
+                        if plot_aper_test:
+                            plt.title(asteroids['num'][i])
+                            plt.xlabel('Aperture (px)')
+                            plt.ylabel('SNR')
+                            
+                            plt.scatter(npsnr[:, 0],
+                                        npsnr[:, 1])
+                            plt.scatter(maxtab[:, 0], maxtab[:, 1],
+                                        color='red')
+                            plt.scatter(mintab[:, 0], mintab[:, 1],
+                                        color='yellow')
+                            plt.show()
 
                     magt_i = ac.flux2mag(flux)
                     magt_i_err = fluxerr / flux * 2.5 / math.log(10)
