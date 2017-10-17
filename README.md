@@ -416,7 +416,7 @@ ac = astronomy.AstCalc()
 
 # Solve field with astrometry.net
 # Please provide image path, so ./ is important!
-ac.solve_field("./5247_0007_R.fits", ra=ra, dec=dec)
+ac.solve_field("./5247_0007_R.fits")
 ```
 
     Image has been solved!
