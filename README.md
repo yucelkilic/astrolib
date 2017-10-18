@@ -12,6 +12,7 @@ And here are our dependencies for this library:
 * [matplotlib](http://matplotlib.org)
 * [astroquery](http://astroquery.readthedocs.io/en/latest/)
 * [ccdproc](http://ccdproc.readthedocs.io/en/latest/)
+* [f2n](https://github.com/yucelkilic/A-Track/tree/master/f2n)
 
 # Table of Contents:
 * [Structure of Module](#structure)
