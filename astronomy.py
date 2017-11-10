@@ -1009,7 +1009,7 @@ class RedOps:
         return(msg)
 
     def make_zero(self, image_path, out_file=False,
-                  gain=0.57, readnoise=4.11):
+                  gain=0.57, readnoise=4.11, imagetyp='Bias'):
 
         """
         Creates master bias file.
@@ -1027,11 +1027,11 @@ class RedOps:
         images = ImageFileCollection(image_path, keywords='*')
         
         bias_list = []
-        if len(images.files_filtered(imagetyp='Bias')) == 0:
+        if len(images.files_filtered(imagetyp=imagetyp)) == 0:
             print("Could not find any BIAS file!")
             raise SystemExit
 
-        for filename in images.files_filtered(imagetyp='Bias'):
+        for filename in images.files_filtered(imagetyp=imagetyp):
             ccd = ccdproc.CCDData.read(images.location + filename,
                                        unit=u.adu)
             
@@ -1056,6 +1056,7 @@ class RedOps:
         return(master_bias)
 
     def make_flat(self, image_path, out_file=False, filter=None,
+                  imagetyp='Flat',
                   master_bias=None,
                   gain=0.57, readnoise=4.11):
 
@@ -1081,14 +1082,14 @@ class RedOps:
         # create the flat fields
         flat_list = []
         
-        if len(images.files_filtered(imagetyp='Flat',
+        if len(images.files_filtered(imagetyp=imagetyp,
                                      filter=filter)) == 0:
             print("Could not find any FLAT file with {0} filter!".format(
                 filter))
             raise SystemExit
             return(False)
 
-        for filename in images.files_filtered(imagetyp='Flat',
+        for filename in images.files_filtered(imagetyp=imagetyp,
                                               filter=filter):
             ccd = ccdproc.CCDData.read(images.location + filename,
                                        unit=u.adu)
@@ -1119,6 +1120,9 @@ class RedOps:
     def ccdproc(self, image_path,
                 cosmic_correct=True,
                 filter=None,
+                imagetyp_light='Light',
+                imagetyp_bias='Bias',
+                imagetyp_flat='Flat',
                 oscan_cor=None,
                 trim=None,
                 gain=0.57,
@@ -1148,7 +1152,7 @@ class RedOps:
         @return: bolean
         """
         
-        chk = sorted(glob.glob("{0}/*.fit?".format(image_path)))
+        chk = sorted(glob.glob("{0}/*.fit*".format(image_path)))
 
         if len(chk) == 0:
             print("No FITS image found in {0}!".format(image_path))
@@ -1162,7 +1166,7 @@ class RedOps:
 
         # copy all files to temp
 
-        os.system("cp -rv {0}/*.fits {1}".format(image_path, atmp))
+        os.system("cp -rv {0}/*.fit* {1}".format(image_path, atmp))
         print(">>> Scientific images are copied!")
 
         if not os.path.exists("{0}/BDF/".format(
@@ -1170,19 +1174,20 @@ class RedOps:
             print("BDF directory does not exist!")
             raise SystemExit
 
-        os.system("cp -rv {0}/BDF/*.fits {1}".format(
+        os.system("cp -rv {0}/BDF/*.fit* {1}".format(
             os.path.dirname(image_path.rstrip('/')),
             atmp))
         
         print(">>> Calibration images are copied!")
 
-        fitslist = sorted(glob.glob("{0}/*.fit?".format(atmp)))
+        fitslist = sorted(glob.glob("{0}/*.fit*".format(atmp)))
 
         for fits_file in fitslist:
             fo = FitsOps(fits_file)
             # Extract RA and DEC coordinates from header
             try:
                 fltr = fo.get_header('filter')
+                print(fltr)
             except:
                 continue
 
@@ -1192,14 +1197,14 @@ class RedOps:
 
         images = ImageFileCollection(atmp, keywords='*')
 
-        master_zero = self.make_zero(atmp)
+        master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
         master_flat = self.make_flat(atmp, master_bias=master_zero,
-                                     filter=filter)
-        img_count = len(images.files_filtered(imagetyp='Light',
+                                     filter=filter, imagetyp=imagetyp_flat)
+        img_count = len(images.files_filtered(imagetyp=imagetyp_light,
                                               filter=filter))
 
         for id, filename in enumerate(
-                images.files_filtered(imagetyp='Light',
+                images.files_filtered(imagetyp=imagetyp_light,
                                       filter=filter)):
 
             print(">>> ccdproc is working for: {0}".format(filename))
