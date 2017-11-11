@@ -1187,7 +1187,8 @@ class RedOps:
             # Extract RA and DEC coordinates from header
             try:
                 fltr = fo.get_header('filter')
-                print(fltr)
+                if fltr is None:
+                    continue
             except:
                 continue
 
