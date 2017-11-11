@@ -1185,28 +1185,29 @@ class RedOps:
         for fits_file in fitslist:
             fo = FitsOps(fits_file)
             # Extract RA and DEC coordinates from header
-            try:
-                fltr = fo.get_header('filter')
-                if fltr is None:
+            if filter is None:
+                try:
+                    fltr = fo.get_header('filter')
+                except:
                     continue
-            except:
-                continue
 
-            if " " in fltr:
-                fltr = fltr.split(" ")[1]
-                fo.update_header('filter', fltr)
+                if " " in fltr:
+                    fltr = fltr.split(" ")[1]
+                    fo.update_header('filter', fltr)
+            else:
+                fltr = filter
 
         images = ImageFileCollection(atmp, keywords='*')
 
         master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
         master_flat = self.make_flat(atmp, master_bias=master_zero,
-                                     filter=filter, imagetyp=imagetyp_flat)
+                                     filter=fltr, imagetyp=imagetyp_flat)
         img_count = len(images.files_filtered(imagetyp=imagetyp_light,
-                                              filter=filter))
+                                              filter=fltr))
 
         for id, filename in enumerate(
                 images.files_filtered(imagetyp=imagetyp_light,
-                                      filter=filter)):
+                                      filter=fltr)):
 
             print(">>> ccdproc is working for: {0}".format(filename))
             
