@@ -92,6 +92,62 @@ class PhotOps:
                 "flux": flux,
                 "fluxerr": fluxerr})
 
+    def photskycoord(self, image_path,
+                     ra, dec,
+                     aper_radius=3.0,
+                     gain=0.57):
+
+        """
+        Photometry of given coordinates.
+        @param image_path: Path of FITS file.
+        @type image_path: path
+        @param ra: RA coordinate of object
+        @type ra: string
+        @param dec: DEC coordinate of object
+        @type dec: string
+        @param aper_radius: Aperture radius
+        @type aper_radius: float
+        @return: tuple
+        """
+        
+        if image_path:
+            hdu = fits.open(image_path)[0]
+        else:
+            print("FITS image has not been provided by the user!")
+            raise SystemExit
+
+        data = hdu.data.astype(float)
+
+        fo = FitsOps(image_path)
+        header = hdu.header
+        w = WCS(header)
+
+        naxis1 = fo.get_header('naxis1')
+        naxis2 = fo.get_header('naxis2')
+
+        c = coordinates.SkyCoord('{0} {1}'.format(
+                        ra, dec), unit=(u.hourangle, u.deg),
+                                 frame='icrs')
+
+        # object's X and Y coor
+        a_x, a_y = w.wcs_world2pix(c.ra.degree, c.dec.degree, 1)
+
+        if naxis1 < a_x or naxis2 < a_y or a_x < 0 or a_y < 0:
+            print("Bad coordinates!")
+            return(False)
+        else:
+            bkg = sep.Background(data)
+            data_sub = data - bkg
+            flux, fluxerr, flag = sep.sum_circle(data_sub,
+                                                 a_x,
+                                                 a_y,
+                                                 aper_radius=aper_radius,
+                                                 err=bkg.globalrms,
+                                                 gain=gain)
+            return({"flag": flag,
+                    "flux": flux,
+                    "fluxerr": fluxerr})
+    
     def asteroids_phot(self, image_path,
                        multi_object=True,
                        target=None,
