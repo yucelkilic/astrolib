@@ -107,6 +107,8 @@ class PhotOps:
         @type dec: string
         @param aper_radius: Aperture radius
         @type aper_radius: float
+        @param gain: gain value for the image expressed in electrons per adu.
+        @type gain: float
         @return: tuple
         """
         
@@ -133,7 +135,7 @@ class PhotOps:
         a_x, a_y = w.wcs_world2pix(c.ra.degree, c.dec.degree, 1)
 
         if naxis1 < a_x or naxis2 < a_y or a_x < 0 or a_y < 0:
-            print("Bad coordinates!")
+            print("Provided coordinates are out of frame!")
             return(False)
         else:
             bkg = sep.Background(data)
