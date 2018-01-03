@@ -35,6 +35,8 @@ class Weather:
             print("No station has found!")
             raise SystemExit
 
+        print("Retriving data from: {0}".format(urlink))
+        
         raw_data = urllib.request.urlopen(urlink)
         dataset = np.genfromtxt(raw_data,
                                 delimiter=None,
@@ -218,13 +220,15 @@ class Weather:
                                                          wind_limit)
             print(dt, bad_time)
             
-            with open("bad_weather_report-{0}_{1}.txt".format(
+            with open("{0}_bad_weather_report-{1}_{2}.txt".format(
+                    station,
                     start_date,
                     end_date), "a") as out:
                 out.write("{0} {1}\n".format(dt, bad_time))
 
         print("Long term bad weather report has been written "
-              "to bad_weather_report-{0}_{1}.txt".format(
+              "to {0}_bad_weather_report-{1}_{2}.txt".format(
+                  station,
                   start_date,
                   end_date))
 
