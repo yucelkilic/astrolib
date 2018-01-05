@@ -22,20 +22,20 @@ class Weather:
 
         year, month, day = re.split('[- :/.]', date_obs)
 
-        if station.capitalize() == "T60":
+        if station.upper() == "T60":
             urlink = "http://t60meteo.tug.tubitak.gov.tr/index.html/" \
                      "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
-        elif station.capitalize() == "RTT150":
-            urlink = "http://rtt150meteo.tug.tubitak.gov.tr" \
-                     "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
-        elif station.capitalize() == "T100":
+        elif station.upper() == "RTT150":
+            urlink = "http://rtt150meteo.tug.tubitak.gov.tr/" \
+                     "ARC-{0}-{1}-{2}.txt".format(year, month, day)
+        elif station.upper() == "T100":
             urlink = "http://t100meteo.tug.tubitak.gov.tr/index.html/" \
                      "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
         else:
             print("No station has found!")
             raise SystemExit
 
-        print("Retriving data from: {0}".format(urlink))
+        # print("Retriving data from: {0}".format(urlink))
         
         raw_data = urllib.request.urlopen(urlink)
         dataset = np.genfromtxt(raw_data,
@@ -53,7 +53,8 @@ class Weather:
         """
         
         ts = [time.strftime('%Y-%m-%dT%H:%M',
-                            time.strptime(s[0], '%Y%m%dT%H:%M')) for s in
+                            time.strptime(s[0].replace("T24:00", "T23:59"),
+                                          '%Y%m%dT%H:%M')) for s in
               date_dataset[:, :1]]
 
         # convert np arrar for merging rest of data
@@ -184,7 +185,14 @@ class Weather:
         total_bad_weather_time = ((len(bad_data_before_mid) +
                                    len(bad_data_after_mid)) * 5) / 60.0
 
-        return(date_obs, '{0:.2f}'.format(total_bad_weather_time))
+        # calculate dark night time
+        tw_dates = [et_before, mt_after]
+        t = Time(tw_dates)
+        dark_hours = (t[1].jd - t[0].jd) * 24
+        
+        return(date_obs,
+               '{0:.2f}'.format(dark_hours),
+               '{0:.2f}'.format(total_bad_weather_time))
 
     def long_term_bad_weather_report(self, start_date,
                                      end_date,
@@ -206,25 +214,35 @@ class Weather:
 
         start_date = date(int(syear), int(smonth), int(sday))
         end_date = date(int(eyear), int(emonth), int(eday))
+
+        print("{0} {1} {2}\n".format("date", "dark_hours",
+                                     "bad_weather_hours"))
         
-        for single_date in self.daterange(start_date, end_date):
-            odate = single_date.strftime("%Y-%m-%d")
-            dt, bad_time = self.daily_bad_weather_report(odate,
-                                                         station,
-                                                         site_longitude,
-                                                         site_latitude,
-                                                         site_elevation,
-                                                         site_name,
-                                                         time_zone,
-                                                         humidity_limit,
-                                                         wind_limit)
-            print(dt, bad_time)
+        with open("{0}_bad_weather_report-{1}_{2}.txt".format(
+                station,
+                start_date,
+                end_date), "a") as out:
+
+            out.write("{0} {1} {2}\n".format("date", "dark_hours",
+                                             "bad_weather_hours"))
             
-            with open("{0}_bad_weather_report-{1}_{2}.txt".format(
+            for single_date in self.daterange(start_date, end_date):
+                odate = single_date.strftime("%Y-%m-%d")
+                dt, dark_hours, bad_time = self.daily_bad_weather_report(
+                    odate,
                     station,
-                    start_date,
-                    end_date), "a") as out:
-                out.write("{0} {1}\n".format(dt, bad_time))
+                    site_longitude,
+                    site_latitude,
+                    site_elevation,
+                    site_name,
+                    time_zone,
+                    humidity_limit,
+                    wind_limit)
+
+                print(dt, dark_hours, bad_time)
+                out.write("{0} {1} {2}\n".format(dt,
+                                                 dark_hours,
+                                                 bad_time))
 
         print("Long term bad weather report has been written "
               "to {0}_bad_weather_report-{1}_{2}.txt".format(
