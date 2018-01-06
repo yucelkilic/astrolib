@@ -1,15 +1,15 @@
 from datetime import timedelta
 from datetime import date
 import time
+
+import numpy as np
+import urllib
+import re
+
 from astropy.table import Table
 from astropy.time import Time
-import numpy as np
-
-import urllib
-from astroplan import Observer
 import astropy.units as u
-
-import re
+from astroplan import Observer
 
 
 class Weather:
