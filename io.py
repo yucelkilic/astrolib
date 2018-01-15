@@ -2,6 +2,11 @@
 
 import glob
 import numpy as np
+import paramiko
+from scp import SCPClient
+import sys
+from astrolib import astronomy
+import os
 
 
 class FileOps:
@@ -52,11 +57,36 @@ class FileOps:
         @return: array
         """
 
-        try:
-            images = sorted(glob.glob(dir_name + '/*.fit*'))
-            return (images)
-        except Exception as e:
-            print(e)
+        images = sorted(glob.glob(dir_name + '/*.fit*'))
+        return (images)
+
+    def get_file_list_from_server(self, hostname,
+                                  username,
+                                  password,
+                                  dirname):
+
+        """
+        List FITS images in a folder into a numpy array.
+        @param dir_name: Directory of FITS images
+        @type dir_name: str
+        @return: array
+        """
+        obsfile = sys.argv[1]
+
+        ssh = paramiko.SSHClient()
+        ssh.load_system_host_keys()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect("193.140.96.43", username="talon", password="smb143")
+        print("Connected")
+        scp = SCPClient(ssh.get_transport())
+
+        with open(obsfile) as fin:
+            with open("aralik_15_31_obs.txt", "a") as out:
+                for line in fin:
+                        gzfile = line.replace("\n", "")
+                        scp.get("/Obs_Arc/obs_arc/{0}".format(gzfile))
+        images = sorted(glob.glob(dir_name + '/*.fit*'))
+        return (images)
 
     def find_if_in_database_id(self, database, idd):
 

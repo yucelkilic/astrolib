@@ -36,7 +36,7 @@ class Weather:
             raise SystemExit
 
         # print("Retriving data from: {0}".format(urlink))
-        
+
         raw_data = urllib.request.urlopen(urlink)
         dataset = np.genfromtxt(raw_data,
                                 delimiter=None,
@@ -51,7 +51,7 @@ class Weather:
         convert first column time format because davis data
         not formatted properly
         """
-        
+
         ts = [time.strftime('%Y-%m-%dT%H:%M',
                             time.strptime(s[0].replace("T24:00", "T23:59"),
                                           '%Y%m%dT%H:%M')) for s in
@@ -92,7 +92,7 @@ class Weather:
                                       'f8',
                                       'f8',
                                       'f8'))
-        
+
         return(tbl_davis_data)
 
     def astronomical_twilight(self, date_obs,
@@ -162,7 +162,7 @@ class Weather:
             site_elevation,
             site_name,
             time_zone)
-        
+
         davis_data_after_mid = self.read_davis_data_from_archive(
             end_date.strftime("%Y-%m-%d"),
             station=station)
@@ -189,7 +189,7 @@ class Weather:
         tw_dates = [et_before, mt_after]
         t = Time(tw_dates)
         dark_hours = (t[1].jd - t[0].jd) * 24
-        
+
         return(date_obs,
                '{0:.2f}'.format(dark_hours),
                '{0:.2f}'.format(total_bad_weather_time))
@@ -217,7 +217,7 @@ class Weather:
 
         print("{0} {1} {2}\n".format("date", "dark_hours",
                                      "bad_weather_hours"))
-        
+
         with open("{0}_bad_weather_report-{1}_{2}.txt".format(
                 station,
                 start_date,
@@ -225,7 +225,7 @@ class Weather:
 
             out.write("{0} {1} {2}\n".format("date", "dark_hours",
                                              "bad_weather_hours"))
-            
+
             for single_date in self.daterange(start_date, end_date):
                 odate = single_date.strftime("%Y-%m-%d")
                 dt, dark_hours, bad_time = self.daily_bad_weather_report(
