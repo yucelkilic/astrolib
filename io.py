@@ -3,9 +3,6 @@
 import glob
 import numpy as np
 import paramiko
-from scp import SCPClient
-import sys
-from astrolib import astronomy
 import os
 
 
