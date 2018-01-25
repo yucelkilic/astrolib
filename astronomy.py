@@ -12,7 +12,7 @@ from astropy.table import Table, Column
 from ccdproc import ImageFileCollection
 import ccdproc
 
-from pyraf import iraf
+# from pyraf import iraf
 
 from datetime import datetime
 from datetime import timedelta
@@ -219,14 +219,14 @@ class AstCalc:
         except Exception as e:
             pass
 
-    def xy2sky(self, file_name, A_x, y):
+    def xy2sky(self, file_name, x, y, sep=" "):
 
         """
         Converts physical coordinates to WCS coordinates for STDOUT.
         @param file_name: FITS image file name with path.
         @type file_name: str
-        @param A_x: A_x coordinate of object.
-        @type A_x: float
+        @param x: x coordinate of object.
+        @type x: float
         @param y: y coordinate of object.
         @type y: float
         @return: str
@@ -235,16 +235,15 @@ class AstCalc:
         try:
             header = fits.getheader(file_name)
             w = WCS(header)
-            astcoords_deg = w.wcs_pix2world([[A_x, y]], 0)
-            astcoords = coordinates.SkyCoord(astcoords_deg * u.deg,
+            astcoords_deg = w.wcs_pix2world([[x, y]], 0)
+            c = coordinates.SkyCoord(astcoords_deg * u.deg,
                                              frame='icrs')
-            alpha = ' '.join(astcoords.to_string(
-                style='hmsdms', sep=" ", precision=2)[0].split(" ")[:3])
 
-            delta = ' '.join(astcoords.to_string(
-                style='hmsdms', sep=" ", precision=1)[0].split(" ")[3:])
+            alpha = c.to_string(style='hmsdms', sep=sep, precision=2)[0]
+            delta = c.to_string(style='hmsdms', sep=sep, precision=1)[0]
 
-            return("{0} {1}".format(alpha, delta))
+            return("{0} {1}".format(alpha.split(" ")[0],
+                                    delta.split(" ")[1]))
         except Exception as e:
             pass
 
@@ -254,8 +253,8 @@ class AstCalc:
         Converts physical coordinates to WCS coordinates for calculations.
         @param file_name: FITS image file name with path.
         @type file_name: str
-        @param A_x: A_x coordinate of object.
-        @type A_x: float
+        @param x: x coordinate of object.
+        @type x: float
         @param y: y coordinate of object.
         @type y: float
         @return: list
@@ -308,8 +307,11 @@ class AstCalc:
             c = coordinates.SkyCoord('{0} {1}'.format(coors[0], coors[1]),
                                      unit=(u.hourangle, u.deg), frame='fk5')
 
-            alpha = c.to_string(style='hmsdms', sep=" ", precision=2)[:11]
-            delta = c.to_string(style='hmsdms', sep=" ", precision=1)[11:]
+            alpha = c.to_string(style='hmsdms', sep=sep, precision=2)[0]
+            delta = c.to_string(style='hmsdms', sep=sep, precision=1)[0]
+
+            return("{0} {1}".format(alpha.split(" ")[0],
+                                    delta.split(" ")[1]))
             
             return('{0} {1}'.format(alpha, delta))
         
