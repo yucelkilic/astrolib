@@ -60,12 +60,12 @@ class FileOps:
     def get_fits_from_server(self,
                              hostname,
                              username,
-                             password ,
+                             password,
                              dirname="/mnt/data/images",
                              fits_ext=".fts"):
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        
+
         try:
             ssh.connect(hostname=hostname,
                         username=username,
@@ -78,7 +78,7 @@ class FileOps:
         sftp.chdir(dirname)
 
         ret = False
-        
+
         for fileattr in sftp.listdir_attr():
             if not os.path.exists(fileattr.filename) and \
                fits_ext in fileattr.filename:
@@ -91,8 +91,10 @@ class FileOps:
         ssh.close()
         if ret is False:
             print("No file(s) found!")
-            
+
         return(ret)
+
+    # def fitshead_to_database(self, ):
 
     def find_if_in_database_id(self, database, idd):
 
