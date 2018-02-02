@@ -4,6 +4,8 @@ import glob
 import numpy as np
 import paramiko
 import os
+import sqlite3
+from astrolib import astronomy
 
 
 class FileOps:
@@ -94,10 +96,70 @@ class FileOps:
 
         return(ret)
 
-    # def fitshead_to_database(self, ):
+    def fitshead_to_database(self, fits_file,
+                             sqlite_file="gozlemler",
+                             table_name="gozlemler",
+                             keywords=['xfactor',
+                                       'yfactor',
+                                       'exptime',
+                                       'object',
+                                       'priority',
+                                       'instrume',
+                                       'jd',
+                                       'date-obs',
+                                       'time-obs',
+                                       'lst',
+                                       'latitude',
+                                       'elevatio',
+                                       'azimuth',
+                                       'ha',
+                                       'ra',
+                                       'dec',
+                                       'objra',
+                                       'objdec',
+                                       'epoch',
+                                       'equinox',
+                                       'filter',
+                                       'camtemp',
+                                       'focuspos',
+                                       'wxtemp',
+                                       'wxpres',
+                                       'wxwndspd',
+                                       'wxwnddir',
+                                       'wxhumid',
+                                       'biascor',
+                                       'thermcor',
+                                       'flatcor',
+                                       'badpxcor',
+                                       'fwhmh',
+                                       'fwhmhs',
+                                       'fwhmv',
+                                       'fwhmvs']):
+
+        # Connecting to the database file
+        conn = sqlite3.connect(sqlite_file)
+        c = conn.cursor()
+
+        fo = astronomy.FitsOps(fits_file)
+        keyword_values = []
+        for keyword in keywords:
+            keyword_value = fo.get_header(keyword)
+            if keyword_value is None:
+                keyword_value = -9999
+                    
+            keyword_values.append(keyword_value)
+                            
+        c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
+            tn=table_name,
+            cn=tuple(keywords),
+            vls=tuple(keyword_values)))
+
+        conn.commit()
+        conn.close()
+
+        return(True)
 
     def find_if_in_database_id(self, database, idd):
-
         """
         Search detected asteroids ID in the MPCORB.DAT database for MPC report.
         @param database: MPCORB.DAT path
