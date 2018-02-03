@@ -64,7 +64,10 @@ class FileOps:
                              username,
                              password,
                              dirname="/mnt/data/images",
-                             fits_ext=".fts"):
+                             fits_ext=".fts",
+                             header2sqlite=False,
+                             sqlite_file="gozlemler.sqlite"):
+        
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -85,6 +88,8 @@ class FileOps:
             if not os.path.exists(fileattr.filename) and \
                fits_ext in fileattr.filename:
                 sftp.get(fileattr.filename, fileattr.filename)
+                if header2sqlite is True:
+                    self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
                 ret = True
                 print("{0} => {1}".format(fileattr.filename,
                                           fileattr.filename))
@@ -97,7 +102,7 @@ class FileOps:
         return(ret)
 
     def fitshead_to_database(self, fits_file,
-                             sqlite_file="gozlemler",
+                             sqlite_file="gozlemler.sqlite",
                              table_name="gozlemler",
                              keywords=['xfactor',
                                        'yfactor',
