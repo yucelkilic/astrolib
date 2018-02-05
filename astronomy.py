@@ -156,7 +156,22 @@ NET {6}""".format(code, observer, observer, tel,
             print("{0} objects detected.".format(len(objects)))
             return(Table(objects))
 
+    def fits_stat(self):
 
+        """
+        Caclculates basic fits statistics
+        """
+        try:
+            hdu = fits.open(self.file_name)
+            image_data = hdu[0].data
+            return({'Min': np.min(image_data),
+                    'Max': np.max(image_data),
+                    'Mean': np.mean(image_data),
+                    'Stdev': np.std(image_data)})
+        except Exception as e:
+            print(e)
+
+            
 class AstCalc:
 
     def __init__(self):
