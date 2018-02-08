@@ -6,9 +6,14 @@ import paramiko
 import os
 import sqlite3
 from astrolib import astronomy
+from datetime import datetime
 
 
 class FileOps:
+
+    def make_date(self, datestr, datefrmt='%Y-%m-%d'):
+
+        return(datetime.strptime(datestr.decode('ascii'), datefrmt))
 
     def read_file_as_array(self, file_name):
 
