@@ -444,9 +444,13 @@ class AstCalc:
                 fo = FitsOps(image_path)
                 ra = fo.get_header(ra_keyword)
                 dec = fo.get_header(dec_keyword)
+                ra = ra.strip()
+                dec = dec.strip()
                 ra = ra.replace(" ", ":")
                 dec = dec.replace(" ", ":")
             else:
+                ra = ra.strip()
+                dec = dec.strip()
                 ra = ra.replace(" ", ":")
                 dec = dec.replace(" ", ":")
                 

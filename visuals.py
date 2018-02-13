@@ -149,7 +149,10 @@ class StarPlot:
         ac = AstCalc()
         if image_path:
             fo = FitsOps(image_path)
-            odate = fo.get_header('date-obs')
+            if not odate:
+                odate = fo.get_header('date-obs')
+            else:
+                odate = odate
             ra_dec = ac.center_finder(image_path, wcs_ref=True)
         elif not image_path and ra and dec and odate:
             odate = odate
