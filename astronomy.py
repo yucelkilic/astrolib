@@ -327,9 +327,9 @@ class AstCalc:
 
             return("{0} {1}".format(alpha.split(" ")[0],
                                     delta.split(" ")[1]))
-            
-            return('{0} {1}'.format(alpha, delta))
-        
+
+            # return('{0} {1}'.format(alpha, delta))
+
         except Exception as e:
             pass
 
