@@ -155,7 +155,10 @@ class PhotOps:
                        target=None,
                        aper_radius=None,
                        plot_aper_test=False,
-                       radius=11, gain=0.57, max_mag=20):
+                       radius=11,
+                       exposure="exptime",
+                       gain=0.57,
+                       max_mag=20):
 
         """
         Photometry of asteroids.
@@ -166,8 +169,10 @@ class PhotOps:
         @param target: Target object that photometry applied. If None,
         will be taken form FITS header.
         @type target: float
-        @param aper_radius: Aperture radius
-        @type aper_radius: float
+        @param radius: Aperture radius
+        @type radius: float
+        @param exposure: Exposure keyword of phot images.
+        @type exposure: str
         @param plot_aper_test: Plot aperture test graph
         @type plot_aper_test: bloean
         @param gain: gain value for the image expressed in electrons per adu.
