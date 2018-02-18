@@ -156,7 +156,7 @@ class PhotOps:
                        aper_radius=None,
                        plot_aper_test=False,
                        radius=11,
-                       exposure="exptime",
+                       exposure=None,
                        gain=0.57,
                        max_mag=20):
 
@@ -172,7 +172,7 @@ class PhotOps:
         @param radius: Aperture radius
         @type radius: float
         @param exposure: Exposure keyword of phot images.
-        @type exposure: str
+        @type exposure: float
         @param plot_aper_test: Plot aperture test graph
         @type plot_aper_test: bloean
         @param gain: gain value for the image expressed in electrons per adu.
@@ -210,6 +210,12 @@ class PhotOps:
             naxis1 = fo.get_header('naxis1')
             naxis2 = fo.get_header('naxis2')
             odate = fo.get_header('date-obs')
+            exptime = fo.get_header('exptime')
+
+            if exptime is not None:
+                if float(exptime) != exposure:
+                    pass
+
             if target is None:
                 objct = fo.get_header('object')
             else:
