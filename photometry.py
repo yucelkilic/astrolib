@@ -212,9 +212,9 @@ class PhotOps:
             odate = fo.get_header('date-obs')
             exptime = fo.get_header('exptime')
 
-            if exptime is not None:
+            if exptime is not None and exposure is not None:
                 if float(exptime) != exposure:
-                    pass
+                    continue
 
             if target is None:
                 objct = fo.get_header('object')
