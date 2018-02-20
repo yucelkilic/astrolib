@@ -12,6 +12,8 @@ from astropy.table import Table
 from astropy import table
 from astropy import coordinates
 from astropy import units as u
+from astropy.stats import sigma_clip
+from astropy.modeling import models, fitting
 from astroquery.skyview import SkyView
 
 import numpy as np
@@ -225,12 +227,12 @@ class StarPlot:
         print(asteroids)
         return(True)
 
-    def lc_plot(self, result_file_path=None,
-                xcol='jd',
-                ycol='mag_t_avr',
-                errcol='mag_t_std',
-                mark_color="blue",
-                bar_color="red"):
+    def lc_plot_general(self, result_file_path=None,
+                        xcol='jd',
+                        ycol='magt_i',
+                        errcol='magt_i_err',
+                        mark_color="blue",
+                        bar_color="red"):
 
         """
         Plot light curve of photometry result.
@@ -255,7 +257,7 @@ class StarPlot:
 
         result_file = Table.read(result_file_path,
                                  format='ascii.commented_header')
-        
+
         result_unique_by_jd = table.unique(result_file, keys='jd')
 
         rcParams['figure.figsize'] = [10., 8.]
@@ -266,19 +268,37 @@ class StarPlot:
         axlc1 = figlc.add_subplot(gs[0])
         axlc2 = figlc.add_subplot(gs[1])
         axlc1.set_title(fn)
+
+        g_init = models.Gaussian1D(amplitude=1., mean=0, stddev=1.)
+
+        # initialize fitters
+        fit = fitting.LevMarLSQFitter()
+        or_fit = fitting.FittingWithOutlierRemoval(fit, sigma_clip,
+                                                   niter=3, sigma=3.0)
+
+        # get fitted model and filtered data
+        filtered_data, or_fitted_model = or_fit(g_init,
+                                                result_unique_by_jd[xcol],
+                                                result_unique_by_jd[ycol])
+
+        axlc1.plot(result_unique_by_jd[xcol],
+                   filtered_data, 'ro',
+                   label="filtered data")
+
         axlc1.errorbar(result_unique_by_jd[xcol],
-                       result_unique_by_jd[ycol],
+                       filtered_data,
                        yerr=result_unique_by_jd[errcol],
                        fmt='o',
                        ecolor=bar_color,
                        color=mark_color,
                        capsize=5,
                        elinewidth=2)
+
         axlc1.invert_yaxis()
         axlc2.set_xlabel("$JD$", fontsize=12)
         axlc1.set_ylabel("$Magnitude (R)$", fontsize=12)
         axlc2.set_ylabel("$STD$", fontsize=12)
-        
+
         fit = np.polyfit(result_unique_by_jd[xcol],
                          result_unique_by_jd[errcol],
                          1)
@@ -292,6 +312,51 @@ class StarPlot:
 
         axlc1.grid(True)
         axlc2.grid(True)
+        axlc1.legend(loc=2, numpoints=1)
 
         figlc.savefig("{0}/{1}.pdf".format(os.getcwd(), fn))
+        plt.show()
+
+    def lc_plot_std_mag(self, result_file_path=None,
+                        xcol='magc_i',
+                        ycol='star_Rmag',
+                        errcol='magc_i_err',
+                        mark_color="blue",
+                        bar_color="red"):
+
+        print("Plotting asteroid's LC...")
+
+        fn = os.path.basename(result_file_path).split('.')[0]
+
+        result_file = Table.read(result_file_path,
+                                 format='ascii.commented_header')
+
+        result_unique_by_jd = table.unique(result_file, keys='nomad1')
+
+        rcParams['figure.figsize'] = [10., 8.]
+        figlc = plt.figure(1)
+        gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
+
+        # Two subplots, the axes array is 1-d
+        axlc1 = figlc.add_subplot(gs[0])
+        axlc2 = figlc.add_subplot(gs[1])
+        axlc1.set_title(fn)
+
+        g_init = models.Gaussian1D(amplitude=1., mean=0, stddev=1.)
+        fit = fitting.LevMarLSQFitter()
+        or_fit = fitting.FittingWithOutlierRemoval(fit,
+                                                   sigma_clip,
+                                                   niter=3, sigma=2.3)
+        fitted_model = fit(g_init, result_unique_by_jd[xcol],
+                           result_unique_by_jd[ycol])
+
+        # get fitted model and filtered data
+        filtered_data, or_fitted_model = or_fit(g_init,
+                                                result_unique_by_jd[xcol],
+                                                result_unique_by_jd[ycol])
+        
+        axlc1.plot(result_unique_by_jd[xcol], filtered_data,
+                   'ro', label="filtered data")
+        axlc1.plot(result_unique_by_jd[xcol], or_fitted_model,
+                   'ro', label="filtered data")
         plt.show()

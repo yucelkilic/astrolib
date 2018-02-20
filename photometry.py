@@ -158,7 +158,8 @@ class PhotOps:
                        radius=11,
                        exposure=None,
                        gain=0.57,
-                       max_mag=20):
+                       max_mag=20,
+                       comp_snr=50):
 
         """
         Photometry of asteroids.
@@ -179,6 +180,8 @@ class PhotOps:
         @type gain: float
         @param max_mag: Faintest object limit.
         @type max_mag: float
+        @param comp_snr: Minimum SNR of detected comparison star.
+        @type comp_snr: float
         @return: bolean and file
         """
         
@@ -193,6 +196,9 @@ class PhotOps:
                 print('No image FITS found in the {0}'.format(image_path))
                 raise SystemExit
 
+        # aper_trigger check count
+        aper_count = 0
+        
         for id, fitsfile in enumerate(fitslist):
             if fitsfile:
                 hdu = fits.open(fitsfile)[0]
@@ -215,6 +221,10 @@ class PhotOps:
             if exptime is not None and exposure is not None:
                 if float(exptime) != exposure:
                     continue
+
+            if aper_count == 0:
+                aper_trigger = id
+                aper_count += 1
 
             if target is None:
                 objct = fo.get_header('object')
@@ -283,7 +293,7 @@ class PhotOps:
                         print("Bad asteroid selected (out of frame!)!")
                         raise SystemExit
 
-                    if id == 0:
+                    if id == aper_trigger:
                         snr = []
                         for aper in range(30):
                             # phot asteroids
@@ -325,7 +335,7 @@ class PhotOps:
                     image.drawcircle(a_x, a_y, r=aper_radius,
                                      colour=(255, 0, 0), label=label)
 
-                    if i < 1 and id < 1:
+                    if i == 0 and id == aper_trigger:
                         comptable = sb.query_color(c.ra.degree,
                                                    c.dec.degree,
                                                    5.0 / 60.0,
@@ -359,6 +369,9 @@ class PhotOps:
                         if flux == 0.0 or fluxerr == 0.0:
                             print("Bad star selected!")
                             raise SystemExit
+
+                        if (flux / fluxerr) <= comp_snr:
+                            continue
                     
                         magc_i = ac.flux2mag(flux)
                         magc_i_err = fluxerr / flux * 2.5 / math.log(10)
@@ -394,22 +407,22 @@ class PhotOps:
                         continue
 
                     # magnitude average
-                    mag_t_avr = np.average(np_phot_res[:, 6].astype(float),
-                                           weights=np_phot_res[:, 7].astype(
+                    magt_avr = np.average(np_phot_res[:, 6].astype(float),
+                                          weights=np_phot_res[:, 7].astype(
                                                float))
 
-                    # mag_t_std calc.
-                    mag_t_std = np.std(np_phot_res[:, 6].astype(float))
+                    # magt_std calc.
+                    magt_std = np.std(np_phot_res[:, 6].astype(float))
                     
-                    np_mag_t_avr_std = [[mag_t_avr,
-                                         mag_t_std,
-                                         filter] for i in range(
+                    np_magt_avr_std = [[magt_avr,
+                                        magt_std,
+                                        filter] for i in range(
                         len(np_phot_res))]
                     
-                    k = np.array(np_mag_t_avr_std).reshape(
-                        len(np_mag_t_avr_std), 3)
+                    k = np.array(np_magt_avr_std).reshape(
+                        len(np_magt_avr_std), 3)
 
-                    # numpy array with mag_t_avr
+                    # numpy array with magt_avr
                     np_phot_res_avg_std = np.concatenate(
                         (np_phot_res,
                          k),
@@ -427,8 +440,8 @@ class PhotOps:
                                                   'ast_mag_cat',
                                                   'nomad1',
                                                   'star_Rmag',
-                                                  'mag_t_avr',
-                                                  'mag_t_std',
+                                                  'magt_avr',
+                                                  'magt_std',
                                                   'filter'),
                                            dtype=('i4',
                                                   'S25',
@@ -451,7 +464,7 @@ class PhotOps:
                     phot_res_table['magc_i_err'].format = '.3f'
                     phot_res_table['magt'].format = '.3f'
                     phot_res_table['magt_err'].format = '.3f'
-                    
+
                     with open('{0}/{1}.txt'.format(
                             os.getcwd(),
                             asteroids['num'][i]), 'a') as f_handle:
@@ -477,3 +490,6 @@ class PhotOps:
             image.tonet('{0}.png'.format(fitshead))
         self.update_progress("Photometry done!", 1)
         return(True)
+
+    def find_best_comparison(self, result_table):
+        
