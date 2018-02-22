@@ -492,4 +492,5 @@ class PhotOps:
         return(True)
 
     def find_best_comparison(self, result_table):
-        
+
+        return(True)

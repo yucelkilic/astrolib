@@ -12,9 +12,11 @@ from astropy.table import Table
 from astropy import table
 from astropy import coordinates
 from astropy import units as u
-from astropy.stats import sigma_clip
-from astropy.modeling import models, fitting
+from astropy.stats import sigma_clip, mad_std
 from astroquery.skyview import SkyView
+
+from statsmodels.formula.api import ols
+import statsmodels.graphics as smgraphics
 
 import numpy as np
 import sep
@@ -225,7 +227,7 @@ class StarPlot:
         plt.gca().invert_yaxis()
         plt.show()
         print(asteroids)
-        return(True)
+        return(True) 
 
     def lc_plot_general(self, result_file_path=None,
                         xcol='jd',
@@ -258,7 +260,7 @@ class StarPlot:
         result_file = Table.read(result_file_path,
                                  format='ascii.commented_header')
 
-        result_unique_by_jd = table.unique(result_file, keys='jd')
+        result_unique_by_keys = table.unique(result_file, keys='jd')
 
         rcParams['figure.figsize'] = [10., 8.]
         figlc = plt.figure(1)
@@ -269,52 +271,44 @@ class StarPlot:
         axlc2 = figlc.add_subplot(gs[1])
         axlc1.set_title(fn)
 
-        g_init = models.Gaussian1D(amplitude=1., mean=0, stddev=1.)
+        filtered_data = sigma_clip(result_unique_by_keys[ycol], sigma=3,
+                                   iters=10, stdfunc=mad_std)
 
-        # initialize fitters
-        fit = fitting.LevMarLSQFitter()
-        or_fit = fitting.FittingWithOutlierRemoval(fit, sigma_clip,
-                                                   niter=3, sigma=3.0)
-
-        # get fitted model and filtered data
-        filtered_data, or_fitted_model = or_fit(g_init,
-                                                result_unique_by_jd[xcol],
-                                                result_unique_by_jd[ycol])
-
-        axlc1.plot(result_unique_by_jd[xcol],
-                   filtered_data, 'ro',
-                   label="filtered data")
-
-        axlc1.errorbar(result_unique_by_jd[xcol],
-                       filtered_data,
-                       yerr=result_unique_by_jd[errcol],
-                       fmt='o',
-                       ecolor=bar_color,
-                       color=mark_color,
-                       capsize=5,
-                       elinewidth=2)
+        axlc1.errorbar(
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            result_unique_by_keys[ycol][np.logical_not(filtered_data.mask)],
+            yerr=result_unique_by_keys[errcol][np.logical_not(
+                filtered_data.mask)],
+            fmt='o',
+            ecolor=bar_color,
+            color=mark_color,
+            capsize=5,
+            elinewidth=2)
 
         axlc1.invert_yaxis()
-        axlc2.set_xlabel("$JD$", fontsize=12)
-        axlc1.set_ylabel("$Magnitude (R)$", fontsize=12)
-        axlc2.set_ylabel("$STD$", fontsize=12)
+        axlc2.set_xlabel("JD", fontsize=12)
+        axlc1.set_ylabel("Magnitude (R - INST)", fontsize=12)
+        axlc2.set_ylabel("STD", fontsize=12)
 
-        fit = np.polyfit(result_unique_by_jd[xcol],
-                         result_unique_by_jd[errcol],
-                         1)
+        fit = np.polyfit(
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            result_unique_by_keys[errcol][np.logical_not(filtered_data.mask)],
+            1)
         fit_fn = np.poly1d(fit)
-        axlc2.plot(result_unique_by_jd[xcol],
-                   result_unique_by_jd[errcol],
-                   'yo',
-                   result_unique_by_jd[xcol],
-                   fit_fn(result_unique_by_jd[xcol]),
-                   '--k')
+        axlc2.plot(
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            result_unique_by_keys[errcol][np.logical_not(filtered_data.mask)],
+            'yo',
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            fit_fn(result_unique_by_keys[xcol][np.logical_not(
+                filtered_data.mask)]),
+            '--k')
 
         axlc1.grid(True)
         axlc2.grid(True)
         axlc1.legend(loc=2, numpoints=1)
 
-        figlc.savefig("{0}/{1}.pdf".format(os.getcwd(), fn))
+        figlc.savefig("{0}/{1}_jd_vs_magi_lc.pdf".format(os.getcwd(), fn))
         plt.show()
 
     def lc_plot_std_mag(self, result_file_path=None,
@@ -331,32 +325,100 @@ class StarPlot:
         result_file = Table.read(result_file_path,
                                  format='ascii.commented_header')
 
-        result_unique_by_jd = table.unique(result_file, keys='nomad1')
+        result_unique_by_keys = table.unique(result_file, keys='nomad1')
+        result_unique_by_jd = table.unique(result_file, keys='jd')
+
+        filtered_data = sigma_clip(result_unique_by_keys[ycol], sigma=3,
+                                   iters=10, stdfunc=mad_std)
+        filtered_data_by_jd = sigma_clip(result_unique_by_jd['magt_i'],
+                                         sigma=3,
+                                         iters=10, stdfunc=mad_std)
 
         rcParams['figure.figsize'] = [10., 8.]
+
         figlc = plt.figure(1)
+        figlc_ast = plt.figure()
+
         gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
 
         # Two subplots, the axes array is 1-d
+        
         axlc1 = figlc.add_subplot(gs[0])
         axlc2 = figlc.add_subplot(gs[1])
+        axlc3 = figlc_ast.add_subplot(gs[0])
         axlc1.set_title(fn)
 
-        g_init = models.Gaussian1D(amplitude=1., mean=0, stddev=1.)
-        fit = fitting.LevMarLSQFitter()
-        or_fit = fitting.FittingWithOutlierRemoval(fit,
-                                                   sigma_clip,
-                                                   niter=3, sigma=2.3)
-        fitted_model = fit(g_init, result_unique_by_jd[xcol],
-                           result_unique_by_jd[ycol])
+        axlc1.errorbar(
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            result_unique_by_keys[ycol][np.logical_not(filtered_data.mask)],
+            yerr=result_unique_by_keys[errcol][np.logical_not(
+                filtered_data.mask)],
+            fmt='o',
+            ecolor=bar_color,
+            color=mark_color,
+            capsize=5,
+            elinewidth=2)
 
-        # get fitted model and filtered data
-        filtered_data, or_fitted_model = or_fit(g_init,
-                                                result_unique_by_jd[xcol],
-                                                result_unique_by_jd[ycol])
-        
-        axlc1.plot(result_unique_by_jd[xcol], filtered_data,
-                   'ro', label="filtered data")
-        axlc1.plot(result_unique_by_jd[xcol], or_fitted_model,
-                   'ro', label="filtered data")
+        fit = np.polyfit(
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            result_unique_by_keys[ycol][np.logical_not(filtered_data.mask)],
+            1)
+
+        fit_fn = np.poly1d(fit)
+
+        magt_std_mags = fit_fn(result_unique_by_jd['magt_i'][np.logical_not(
+            filtered_data_by_jd.mask)])
+
+        axlc1.plot(
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            fit_fn(result_unique_by_keys[xcol][np.logical_not(
+                filtered_data.mask)]),
+            '--k')
+
+        axlc1.invert_yaxis()
+        axlc2.set_xlabel("Magnitude (Inst)", fontsize=12)
+        axlc1.set_ylabel("Magnitude (R - NOMAD1)", fontsize=12)
+        axlc2.set_ylabel("$STD$", fontsize=12)
+
+        fit = np.polyfit(
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            result_unique_by_keys[errcol][np.logical_not(filtered_data.mask)],
+            1)
+        fit_fn = np.poly1d(fit)
+        axlc2.plot(
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            result_unique_by_keys[errcol][np.logical_not(filtered_data.mask)],
+            'yo',
+            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
+            fit_fn(result_unique_by_keys[xcol][np.logical_not(
+                filtered_data.mask)]),
+            '--k')
+
+        axlc1.grid(True)
+        axlc2.grid(True)
+        axlc1.legend(loc=2, numpoints=1)
+        figlc.savefig("{0}/{1}_magi_vs_std.pdf".format(os.getcwd(), fn))
+
+        axlc3.invert_yaxis()
+        axlc3.set_xlabel("$JD$", fontsize=12)
+        axlc3.set_ylabel("Magnitude (R - Estimated from NOMAD1)",
+                         fontsize=12)
+
+        axlc3.errorbar(
+            result_unique_by_jd['jd'][np.logical_not(
+                filtered_data_by_jd.mask)],
+            magt_std_mags,
+            yerr=result_unique_by_jd['magt_i_err'][np.logical_not(
+                filtered_data_by_jd.mask)],
+            fmt='o',
+            ecolor=bar_color,
+            color=mark_color,
+            capsize=5,
+            elinewidth=2,
+            label='{0} - R (Estimated)'.format(fn))
+
+        axlc3.legend(loc=2, numpoints=1)
+        axlc3.grid(True)
+        figlc_ast.savefig("{0}/{1}_jd_vs_std_lc.pdf".format(os.getcwd(), fn))
+
         plt.show()
