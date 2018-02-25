@@ -12,18 +12,13 @@ from astropy.table import Table
 from astropy import table
 from astropy import coordinates
 from astropy import units as u
+from astropy.wcs import WCS
 from astropy.stats import sigma_clip, mad_std
 from astroquery.skyview import SkyView
-
-from statsmodels.formula.api import ols
-import statsmodels.graphics as smgraphics
 
 import numpy as np
 import sep
 import os
-
-from astropy.wcs import WCS
-# from astropy.utils.data import get_pkg_data_filename
 
 
 class StarPlot:
@@ -43,22 +38,22 @@ class StarPlot:
         """
 
         rcParams['figure.figsize'] = [10., 8.]
-        
+
         # plot background-subtracted image
         fig, ax = plt.subplots()
 
         m, s = np.mean(image_data), np.std(image_data)
         ax.imshow(image_data, interpolation='nearest',
-                  cmap='gray', vmin=m-s, vmax=m+s, origin='lower')
+                  cmap='gray', vmin=m - s, vmax=m + s, origin='lower')
 
         # plot an ellipse for each object
 
         objects = Table(objects)
-        
+
         for i in range(len(objects)):
             e = Ellipse(xy=(objects['x'][i], objects['y'][i]),
-                        width=6*objects['a'][i],
-                        height=6*objects['b'][i],
+                        width=6 * objects['a'][i],
+                        height=6 * objects['b'][i],
                         angle=objects['theta'][i] * 180. / np.pi)
 
             e.set_facecolor('none')
@@ -67,14 +62,15 @@ class StarPlot:
 
         plt.show()
 
-        return(True)
+        return True
 
-    def asteroids_plot(self, image_path=None,
+    def asteroids_plot(self,
+                       image_path=None,
                        ra=None,
                        dec=None,
                        odate=None,
                        time_travel=1,
-                       radius=6,
+                       radi=6,
                        max_mag=20.0,
                        circle_color='yellow',
                        arrow_color='red'):
@@ -87,8 +83,8 @@ class StarPlot:
         @type ra: str in "HH MM SS"
         @param dec: DEC coordinate of target area
         @type dec: str in "+DD MM SS"
-        @param radius: Radius in arcmin.
-        @type radius: str
+        @param radi: Radius in arcmin.
+        @type radi: float
         @param odate: Ephemeris date of observation in date
         @type odate: "2017-08-15T19:50:00.95" format in str
         @param time_travel: Jump into time after given date (in hour).
@@ -116,14 +112,15 @@ class StarPlot:
                                       frame='icrs')
             print('Target Coordinates:',
                   co.to_string(style='hmsdms', sep=':'),
-                  'in {0} arcmin'.format(radius))
+                  'in {0} arcmin'.format(radi))
             try:
                 server_img = SkyView.get_images(position=co,
                                                 survey=['DSS'],
-                                                radius=radius*u.arcmin)
+                                                radius=radi * u.arcmin)
                 hdu = server_img[0][0]
-            except:
+            except Exception as e:
                 print("SkyView could not get the image from DSS server.")
+                print(e)
                 raise SystemExit
 
         wcs = WCS(hdu.header)
@@ -139,7 +136,7 @@ class StarPlot:
         ax = plt.subplot(projection=wcs)
 
         plt.imshow(data_sub, interpolation='nearest',
-                   cmap='gray', vmin=m-s, vmax=m+s, origin='lower')
+                   cmap='gray', vmin=m - s, vmax=m + s, origin='lower')
         ax.coords.grid(True, color='white', ls='solid')
         ax.coords[0].set_axislabel('Galactic Longitude')
         ax.coords[1].set_axislabel('Galactic Latitude')
@@ -165,7 +162,7 @@ class StarPlot:
         request0 = sb.find_skybot_objects(odate,
                                           ra_dec[0].degree,
                                           ra_dec[1].degree,
-                                          radius=radius)
+                                          radius=radi)
 
         if request0[0]:
             asteroids = request0[1]
@@ -176,7 +173,7 @@ class StarPlot:
         request1 = sb.find_skybot_objects(odate,
                                           ra_dec[0].degree,
                                           ra_dec[1].degree,
-                                          radius=radius,
+                                          radius=float(radi),
                                           time_travel=time_travel)
 
         if request1[0]:
@@ -190,14 +187,14 @@ class StarPlot:
                 c = coordinates.SkyCoord('{0} {1}'.format(
                     asteroids['ra(h)'][i],
                     asteroids['dec(deg)'][i]),
-                                         unit=(u.hourangle, u.deg),
-                                         frame='icrs')
+                    unit=(u.hourangle, u.deg),
+                    frame='icrs')
 
                 c_after = coordinates.SkyCoord('{0} {1}'.format(
                     asteroids_after['ra(h)'][i],
                     asteroids_after['dec(deg)'][i]),
-                                               unit=(u.hourangle, u.deg),
-                                               frame='icrs')
+                    unit=(u.hourangle, u.deg),
+                    frame='icrs')
 
                 r = FancyArrowPatch(
                     (c.ra.degree, c.dec.degree),
@@ -218,7 +215,7 @@ class StarPlot:
                         ha='center',
                         va='center',
                         transform=ax.get_transform('icrs'))
-                
+
                 r.set_facecolor('none')
                 r.set_edgecolor(arrow_color)
                 ax.add_patch(p)
@@ -227,9 +224,10 @@ class StarPlot:
         plt.gca().invert_yaxis()
         plt.show()
         print(asteroids)
-        return(True) 
+        return True
 
-    def lc_plot_general(self, result_file_path=None,
+    def lc_plot_general(self,
+                        result_file_path=None,
                         xcol='jd',
                         ycol='magt_i',
                         errcol='magt_i_err',
@@ -320,96 +318,119 @@ class StarPlot:
 
         print("Plotting asteroid's LC...")
 
+        # Fixing random state for reproducibility
+        np.random.seed(19680801)
+
         fn = os.path.basename(result_file_path).split('.')[0]
+
+        # Two subplots, the axes array is 1-d
+        # Plotting settings
+        rcParams['figure.figsize'] = [10., 8.]
+
+        lc = plt.figure(1)
+        lc_ast_std = plt.figure()
+        gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
+
+        # magi vs catalogue
+        lc1 = lc.add_subplot(gs[0])
+        lc1.set_title(fn)
+        lc1.grid(True)
+        lc1.set_ylabel("Magnitude (R - NOMAD1)", fontsize=12)
+        lc1.invert_yaxis()
+
+        # magi vs STD
+        lc2 = lc.add_subplot(gs[1])
+        lc2.set_title(fn)
+        lc2.grid(True)
+        lc2.set_xlabel("Magnitude (Inst)", fontsize=12)
+        lc2.set_ylabel("$STD$", fontsize=12)
+
+        # magt vs estimated mag
+        lc3 = lc_ast_std.add_subplot(gs[0])
+        lc3.set_title(fn)
+        lc3.legend(loc=2, numpoints=1)
+        lc3.grid(True)
+        lc3.invert_yaxis()
+        lc3.set_xlabel("$JD$", fontsize=12)
+        lc3.set_ylabel("Magnitude (R - Estimated from NOMAD1)",
+                       fontsize=12)
+        # Plotting settings
 
         result_file = Table.read(result_file_path,
                                  format='ascii.commented_header')
 
-        result_unique_by_keys = table.unique(result_file, keys='nomad1')
+        # result_unique_by_keys = table.unique(result_file, keys='nomad1')
         result_unique_by_jd = table.unique(result_file, keys='jd')
 
-        filtered_data = sigma_clip(result_unique_by_keys[ycol], sigma=3,
-                                   iters=10, stdfunc=mad_std)
-        filtered_data_by_jd = sigma_clip(result_unique_by_jd['magt_i'],
+        magt_std_list = []
+        for jd in result_unique_by_jd['jd']:
+            frame_results = result_file[(result_file['jd'] == jd)]
+
+            # for reject outliers
+            filtered_frame_results = sigma_clip(frame_results['magt_i'],
+                                                sigma=3,
+                                                iters=10, stdfunc=mad_std)
+
+            # use only not rejected data (because umask used)
+            filtered_f_umask = np.logical_not(filtered_frame_results.mask)
+
+            # magci vs catalogue with error bar
+            lc1.errorbar(
+                frame_results[xcol][filtered_f_umask],
+                frame_results[ycol][filtered_f_umask],
+                yerr=frame_results[errcol][filtered_f_umask],
+                fmt='o',
+                ecolor=bar_color,
+                color=mark_color,
+                capsize=5,
+                elinewidth=2)
+
+            # magci vs catalogue fit calculation
+            fit = np.polyfit(
+                frame_results[xcol][filtered_f_umask],
+                frame_results[ycol][filtered_f_umask],
+                1)
+
+            fit_fn = np.poly1d(fit)
+
+            magt_to_std = fit_fn(frame_results['magt_i'][filtered_f_umask])
+            magt_std_list.append([jd, magt_to_std[0], frame_results['magt_i_err'][0]])
+
+            # magci vs catalogue fit plot
+            lc1.plot(
+                frame_results[xcol][filtered_f_umask],
+                fit_fn(frame_results[xcol][filtered_f_umask]),
+                '--k')
+
+            # magi vs catalogue error fit calc.
+            fit = np.polyfit(
+                frame_results[xcol][filtered_f_umask],
+                frame_results[errcol][filtered_f_umask],
+                1)
+            fit_fn = np.poly1d(fit)
+
+            # magi vs STD fit plot
+            lc2.plot(
+                frame_results[xcol][filtered_f_umask],
+                frame_results[errcol][filtered_f_umask],
+                'yo',
+                frame_results[xcol][filtered_f_umask],
+                fit_fn(frame_results[xcol][filtered_f_umask]),
+                '--k')
+
+        # jd vs magt_std
+        jd_vs_magt = np.asanyarray(magt_std_list)
+        filtered_jd_vs_magt = sigma_clip(jd_vs_magt[:, 1],
                                          sigma=3,
                                          iters=10, stdfunc=mad_std)
+        # use only not rejected data (because umask used)
+        filtered_f_umask = np.logical_not(filtered_jd_vs_magt.mask)
 
-        rcParams['figure.figsize'] = [10., 8.]
-
-        figlc = plt.figure(1)
-        figlc_ast = plt.figure()
-
-        gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
-
-        # Two subplots, the axes array is 1-d
-        
-        axlc1 = figlc.add_subplot(gs[0])
-        axlc2 = figlc.add_subplot(gs[1])
-        axlc3 = figlc_ast.add_subplot(gs[0])
-        axlc1.set_title(fn)
-
-        axlc1.errorbar(
-            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
-            result_unique_by_keys[ycol][np.logical_not(filtered_data.mask)],
-            yerr=result_unique_by_keys[errcol][np.logical_not(
-                filtered_data.mask)],
-            fmt='o',
-            ecolor=bar_color,
-            color=mark_color,
-            capsize=5,
-            elinewidth=2)
-
-        fit = np.polyfit(
-            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
-            result_unique_by_keys[ycol][np.logical_not(filtered_data.mask)],
-            1)
-
-        fit_fn = np.poly1d(fit)
-
-        magt_std_mags = fit_fn(result_unique_by_jd['magt_i'][np.logical_not(
-            filtered_data_by_jd.mask)])
-
-        axlc1.plot(
-            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
-            fit_fn(result_unique_by_keys[xcol][np.logical_not(
-                filtered_data.mask)]),
-            '--k')
-
-        axlc1.invert_yaxis()
-        axlc2.set_xlabel("Magnitude (Inst)", fontsize=12)
-        axlc1.set_ylabel("Magnitude (R - NOMAD1)", fontsize=12)
-        axlc2.set_ylabel("$STD$", fontsize=12)
-
-        fit = np.polyfit(
-            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
-            result_unique_by_keys[errcol][np.logical_not(filtered_data.mask)],
-            1)
-        fit_fn = np.poly1d(fit)
-        axlc2.plot(
-            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
-            result_unique_by_keys[errcol][np.logical_not(filtered_data.mask)],
-            'yo',
-            result_unique_by_keys[xcol][np.logical_not(filtered_data.mask)],
-            fit_fn(result_unique_by_keys[xcol][np.logical_not(
-                filtered_data.mask)]),
-            '--k')
-
-        axlc1.grid(True)
-        axlc2.grid(True)
-        axlc1.legend(loc=2, numpoints=1)
-        figlc.savefig("{0}/{1}_magi_vs_std.pdf".format(os.getcwd(), fn))
-
-        axlc3.invert_yaxis()
-        axlc3.set_xlabel("$JD$", fontsize=12)
-        axlc3.set_ylabel("Magnitude (R - Estimated from NOMAD1)",
-                         fontsize=12)
-
-        axlc3.errorbar(
-            result_unique_by_jd['jd'][np.logical_not(
-                filtered_data_by_jd.mask)],
-            magt_std_mags,
-            yerr=result_unique_by_jd['magt_i_err'][np.logical_not(
-                filtered_data_by_jd.mask)],
+        # jd vs magt plotting with error bars
+        lc3.errorbar(
+            jd_vs_magt[:, 0][filtered_f_umask],
+            jd_vs_magt[:, 1][filtered_f_umask],
+            yerr=jd_vs_magt[:, 2][filtered_f_umask],
             fmt='o',
             ecolor=bar_color,
             color=mark_color,
@@ -417,8 +438,93 @@ class StarPlot:
             elinewidth=2,
             label='{0} - R (Estimated)'.format(fn))
 
-        axlc3.legend(loc=2, numpoints=1)
-        axlc3.grid(True)
-        figlc_ast.savefig("{0}/{1}_jd_vs_std_lc.pdf".format(os.getcwd(), fn))
+        lc3.legend(loc=2, numpoints=1)
+        lc_ast_std.savefig("{0}/{1}_jd_vs_mag_std_lc.pdf".format(os.getcwd(), fn))
+
+        plt.show()
+
+    def find_best_comp(self, result_file_path=None):
+
+        result_file = Table.read(result_file_path,
+                                 format='ascii.commented_header')
+
+        # read comparison star list
+        result_unique_by_cat = table.unique(result_file, keys='nomad1')
+
+        std_list = []
+        t_c_list = []
+        # calculates diff_mag for all target objects and comp. stars
+        for star in result_unique_by_cat['nomad1']:
+            frame_results = result_file[(result_file['nomad1'] == star)]
+            # diff phot.
+            frame_results['t-c'] = frame_results['magt_i'] - frame_results['magc_i']
+            # error propagation
+            frame_results['t-c-err'] = np.sqrt(
+                np.power(frame_results['magt_i_err'], 2) + np.power(frame_results['magc_i_err'], 2))
+
+            # extracting usefull columns
+            t_c_list.append(frame_results['ast_num', 'nomad1', 'jd', 't-c', 't-c-err'])
+
+            # calculating all t-c stars STD then adding list
+            std_list.append(np.std(frame_results['t-c']))
+        # calculating all STD's mean and its index number in the list
+        mean_idx = (np.abs(np.asanyarray(std_list) - np.mean(std_list))).argmin()
+
+        # choosing STD with min, mean and max stars
+        diff_stats = {'min': [std_list.index(min(std_list)), min(std_list)],
+                      'mean': [mean_idx, np.mean(std_list)],
+                      'max': [std_list.index(max(std_list)), max(std_list)]
+                      }
+        # getting these diff mags and their other columns
+        results = {'with_min_comp': t_c_list[diff_stats['min'][0]],
+                   'with_mean_comp': t_c_list[diff_stats['mean'][0]],
+                   'with_max_comp': t_c_list[diff_stats['max'][0]]
+                   }
+
+        return results
+
+    def lc_plot_diff_mag(self, result_file_path=None,
+                         mark_color="blue",
+                         bar_color="red"):
+
+        print("Plotting asteroid's LC...")
+
+        fn = os.path.basename(result_file_path).split('.')[0]
+
+        # Two subplots, the axes array is 1-d
+        # Plotting settings
+        rcParams['figure.figsize'] = [10., 8.]
+
+        lc_ast_diff = plt.figure()
+        gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
+
+        results = self.find_best_comp(result_file_path=result_file_path)['with_mean_comp']
+
+        # jd vs magt - magi
+        lc = lc_ast_diff.add_subplot(gs[0])
+        lc.set_title(fn)
+        lc.legend(loc=2, numpoints=1)
+        lc.grid(True)
+        lc.invert_yaxis()
+        lc.set_xlabel("$JD$", fontsize=12)
+        lc.set_ylabel("Diff Mag. ({0} - {1})".format(
+            results['ast_num'][0],
+            results['nomad1'][0]),
+            fontsize=12)
+        # Plotting settings
+
+        lc.errorbar(
+            results['jd'],
+            results['t-c'],
+            yerr=results['t-c-err'],
+            fmt='o',
+            ecolor=bar_color,
+            color=mark_color,
+            capsize=5,
+            elinewidth=2,
+            label='{0} - {1}'.format(fn, results['nomad1'][0]))
+
+        lc.legend(loc=2, numpoints=1)
+        lc_ast_diff.savefig("{0}/{1}_jd_vs_diff_mag_lc.pdf".format(os.getcwd(), fn))
 
         plt.show()
