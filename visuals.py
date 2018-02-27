@@ -500,6 +500,13 @@ class StarPlot:
 
         results = self.find_best_comp(result_file_path=result_file_path)['with_mean_comp']
 
+        filtered_jd_vs_mag_diff = sigma_clip(results['t-c'],
+                                         sigma=3,
+                                         iters=10, stdfunc=mad_std)
+
+        # use only not rejected data (because umask used)
+        filtered_diff_umask = np.logical_not(filtered_jd_vs_mag_diff.mask)
+
         # jd vs magt - magi
         lc = lc_ast_diff.add_subplot(gs[0])
         lc.set_title(fn)
@@ -514,9 +521,9 @@ class StarPlot:
         # Plotting settings
 
         lc.errorbar(
-            results['jd'],
-            results['t-c'],
-            yerr=results['t-c-err'],
+            results['jd'][filtered_diff_umask],
+            results['t-c'][filtered_diff_umask],
+            yerr=results['t-c-err'][filtered_diff_umask],
             fmt='o',
             ecolor=bar_color,
             color=mark_color,
