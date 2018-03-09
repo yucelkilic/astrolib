@@ -278,7 +278,7 @@ class AstCalc:
         try:
             header = fits.getheader(file_name)
             w = WCS(header)
-            astcoords_deg = w.wcs_pix2world([[x, y]], 0)
+            astcoords_deg = w.wcs_pix2world([[x, y]], 1)
 
             astcoords = coordinates.SkyCoord(
                 astcoords_deg * u.deg, frame='icrs')
@@ -371,6 +371,49 @@ class AstCalc:
         except Exception as e:
             pass
 
+    def sky2xy(self, image_path, ra, dec):
+
+        """
+        Converts physical coordinates to WCS coordinates for
+        calculations with wcstools' xy2sky.
+
+        @param image_path: FITS image file name with path.
+        @type image_path: str
+        @param RA: RA coordinate of object.
+        @type RA: string
+        @param DEC: DEC coordinate of object.
+        @type DEC: string
+        @return: tuple
+        """
+
+        if image_path:
+            hdu = fits.open(image_path)[0]
+        else:
+            print("FITS image has not been provided by the user!")
+            raise SystemExit
+
+        data = hdu.data.astype(float)
+
+        fo = FitsOps(image_path)
+        header = hdu.header
+        w = WCS(header)
+
+        naxis1 = fo.get_header('naxis1')
+        naxis2 = fo.get_header('naxis2')
+
+        c = coordinates.SkyCoord('{0} {1}'.format(
+                        ra, dec), unit=(u.hourangle, u.deg),
+                                 frame='icrs')
+
+        # target's X and Y coor
+        t_x, t_y = w.wcs_world2pix(c.ra.degree, c.dec.degree, 1)
+
+        if naxis1 < t_x or naxis2 < t_y or t_x < 0 or t_y < 0:
+            print("Provided coordinates are out of frame!")
+            return(False)
+        else:
+            return(float(t_x), float(t_y))
+
     def center_finder(self, file_name, wcs_ref=False):
 
         """
@@ -454,7 +497,7 @@ class AstCalc:
                 ra = ra.replace(" ", ":")
                 dec = dec.replace(" ", ":")
                 
-            system(("solve-field --no-fits2fits --no-plots "
+            system(("solve-field --no-plots "
                     "--no-verify --tweak-order {0} "
                     "--downsample {1} --overwrite --radius {2} --no-tweak "
                     "--ra {3} --dec {4} {5}").format(tweak_order,
