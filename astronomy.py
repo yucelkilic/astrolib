@@ -234,7 +234,7 @@ class AstCalc:
         except Exception as e:
             pass
 
-    def xy2sky(self, file_name, x, y, sep=" "):
+    def xy2sky(self, file_name, x, y, sep=":"):
 
         """
         Converts physical coordinates to WCS coordinates for STDOUT.
@@ -451,7 +451,7 @@ class AstCalc:
                     image_path,
                     tweak_order=2,
                     downsample=4,
-                    radius=0.5,
+                    radius=0.2,
                     ra=None,
                     dec=None,
                     ra_keyword="objctra",
