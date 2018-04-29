@@ -685,6 +685,7 @@ class AstCalc:
                rms_dec,
                rms_delta)
 
+    """
     def ccmap(self, objects_matrix, image_path,
               ppm_parallax_cor=True,
               stdout=False):
@@ -857,6 +858,7 @@ class AstCalc:
                             "Reference point (X, Y)",
                             "X and Y scale",
                             "X and Y axis rotation"])
+    """
 
     def ppm_cor(self, ra, dec, pmRA, pmDE, odate):
         """
