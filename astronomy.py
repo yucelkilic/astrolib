@@ -690,7 +690,7 @@ class AstCalc:
               ppm_parallax_cor=True,
               stdout=False):
 
-        """
+        
         Compute plate solutions using
         matched pixel and celestial coordinate lists.
         @param objects_matrix: Return of the match_catalog function
@@ -704,7 +704,6 @@ class AstCalc:
         @param stdout: Print result as a STDOUT?
         @type stdout: boolean
         @return: boolean, FITS image with WCS solutions
-        """
 
         remove_nan = objects_matrix['x',
                                     'y',
