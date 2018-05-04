@@ -127,7 +127,11 @@ class FileOps:
             quit()
 
         sftp = ssh.open_sftp()
-        sftp.chdir(dirname)
+        try:
+            sftp.chdir(dirname)
+        except FileNotFoundError:
+            print("No such folder!")
+            raise SystemExit
 
         ret = False
         latest = 0
@@ -145,6 +149,7 @@ class FileOps:
 
         if header2sqlite is True:
             self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
+
         ret = True
         print("{0} => {1}".format(latestfile,
                                   latestfile))
