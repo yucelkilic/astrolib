@@ -91,7 +91,7 @@ class FileOps:
 
         for fileattr in sftp.listdir_attr():
             if not os.path.exists(fileattr.filename) and \
-               fits_ext in fileattr.filename:
+                    fits_ext in fileattr.filename:
                 sftp.get(fileattr.filename, fileattr.filename)
                 if header2sqlite is True:
                     self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
@@ -105,6 +105,60 @@ class FileOps:
             print("No file(s) found!")
 
         return(ret)
+
+    def get_latest_fits_from_server(self,
+                                    hostname,
+                                    username,
+                                    password,
+                                    dirname="/mnt/data/images",
+                                    fits_ext=".fts",
+                                    header2sqlite=False,
+                                    sqlite_file="gozlemler.sqlite"):
+
+        ssh = paramiko.SSHClient()
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+
+        try:
+            ssh.connect(hostname=hostname,
+                        username=username,
+                        password=password)
+        except paramiko.SSHException:
+            print("Connection Failed")
+            quit()
+
+        sftp = ssh.open_sftp()
+        sftp.chdir(dirname)
+
+        ret = False
+        latest = 0
+        latestfile = None
+
+        for fileattr in sftp.listdir_attr():
+            if not os.path.exists(fileattr.filename) and \
+                    fits_ext in fileattr.filename and \
+                    fileattr.filename.startswith('Temat') and fileattr.st_mtime > latest:
+                latest = fileattr.st_mtime
+                latestfile = fileattr.filename
+
+                if latestfile is not None:
+                    sftp.get(fileattr.filename, fileattr.filename)
+
+                if header2sqlite is True:
+                    self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
+                ret = True
+                print("{0} => {1}".format(fileattr.filename,
+                                          fileattr.filename))
+
+
+        if latestfile is not None:
+            sftp.get(filename, filename)
+
+        print("Done")
+        ssh.close()
+        if ret is False:
+            print("No file(s) found!")
+
+        return (ret)
 
     def fitshead_to_database(self, fits_file,
                              sqlite_file="gozlemler.sqlite",
