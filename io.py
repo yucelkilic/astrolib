@@ -135,20 +135,20 @@ class FileOps:
 
         for fileattr in sftp.listdir_attr():
             if not os.path.exists(fileattr.filename) and \
-                    fits_ext in fileattr.filename and \
-                    fileattr.filename.startswith('Temat') and \
+                    fits_ext in fileattr.filename:
+                if fileattr.filename.startswith('Temat') and \
                     fileattr.st_mtime > latest:
-                latest = fileattr.st_mtime
-                latestfile = fileattr.filename
+                    latest = fileattr.st_mtime
+                    latestfile = fileattr.filename
 
-                if latestfile is not None:
-                    sftp.get(fileattr.filename, fileattr.filename)
+                    if latestfile is not None:
+                        sftp.get(fileattr.filename, fileattr.filename)
 
-                if header2sqlite is True:
-                    self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
-                ret = True
-                print("{0} => {1}".format(fileattr.filename,
-                                          fileattr.filename))
+                    if header2sqlite is True:
+                        self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
+                    ret = True
+                    print("{0} => {1}".format(fileattr.filename,
+                                              fileattr.filename))
 
         print("Done")
         ssh.close()
