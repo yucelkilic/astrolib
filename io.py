@@ -136,7 +136,8 @@ class FileOps:
         for fileattr in sftp.listdir_attr():
             if not os.path.exists(fileattr.filename) and \
                     fits_ext in fileattr.filename and \
-                    fileattr.filename.startswith('Temat') and fileattr.st_mtime > latest:
+                    fileattr.filename.startswith('Temat') and \
+                    fileattr.st_mtime > latest:
                 latest = fileattr.st_mtime
                 latestfile = fileattr.filename
 
