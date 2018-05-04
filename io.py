@@ -138,17 +138,16 @@ class FileOps:
         latestfile = None
 
         for fileattr in sftp.listdir_attr():
-            if not os.path.exists(fileattr.filename) and \
-                    fits_ext in fileattr.filename:
-                if fileattr.st_mtime > latest:
-                    latest = fileattr.st_mtime
-                    latestfile = fileattr.filename
+            if fits_ext in fileattr.filename and fileattr.st_mtime > latest:
+                latest = fileattr.st_mtime
+                latestfile = fileattr.filename
 
-        if latestfile is not None:
+        if latestfile is not None and \
+                os.path.exists(fileattr.filename) is False:
             sftp.get(latestfile, latestfile)
 
         if header2sqlite is True:
-            self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
+            self.fitshead_to_database(latestfile, sqlite_file=sqlite_file)
 
         ret = True
         print("{0} => {1}".format(latestfile,
