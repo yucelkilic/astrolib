@@ -5,7 +5,7 @@ import numpy as np
 import paramiko
 import os
 import sqlite3
-from astrolib import astronomy
+from .astronomy import FitsOps
 from datetime import datetime
 
 
@@ -153,7 +153,7 @@ class FileOps:
         conn = sqlite3.connect(sqlite_file)
         c = conn.cursor()
 
-        fo = astronomy.FitsOps(fits_file)
+        fo = FitsOps(fits_file)
         keyword_values = []
         for keyword in keywords:
             keyword_value = fo.get_header(keyword)
