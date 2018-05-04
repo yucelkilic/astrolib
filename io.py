@@ -149,10 +149,6 @@ class FileOps:
                 print("{0} => {1}".format(fileattr.filename,
                                           fileattr.filename))
 
-
-        if latestfile is not None:
-            sftp.get(filename, filename)
-
         print("Done")
         ssh.close()
         if ret is False:
