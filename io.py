@@ -145,11 +145,11 @@ class FileOps:
         if latestfile is not None and \
                 os.path.exists(fileattr.filename) is False:
             sftp.get(latestfile, latestfile)
+            ret = True
 
         if header2sqlite is True:
             self.fitshead_to_database(latestfile, sqlite_file=sqlite_file)
 
-        ret = True
         print("{0} => {1}".format(latestfile,
                                   latestfile))
 
@@ -158,7 +158,7 @@ class FileOps:
         if ret is False:
             print("No file(s) found!")
 
-        return (ret)
+        return (latestfile)
 
     def fitshead_to_database(self, fits_file,
                              sqlite_file="gozlemler.sqlite",
