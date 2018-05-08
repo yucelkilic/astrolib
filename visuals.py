@@ -534,4 +534,4 @@ class StarPlot:
         lc.legend(loc=2, numpoints=1)
         lc_ast_diff.savefig("{0}/{1}_jd_vs_diff_mag_lc.pdf".format(os.getcwd(), fn))
 
-        plt.show()
+        # plt.show()
