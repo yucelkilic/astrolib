@@ -307,7 +307,7 @@ class StarPlot:
         axlc1.legend(loc=2, numpoints=1)
 
         figlc.savefig("{0}/{1}_jd_vs_magi_lc.pdf".format(os.getcwd(), fn))
-        plt.show()
+        # plt.show()
 
     def lc_plot_std_mag(self, result_file_path=None,
                         xcol='magc_i',
@@ -441,7 +441,7 @@ class StarPlot:
         lc3.legend(loc=2, numpoints=1)
         lc_ast_std.savefig("{0}/{1}_jd_vs_mag_std_lc.pdf".format(os.getcwd(), fn))
 
-        plt.show()
+        # plt.show()
 
     def find_best_comp(self, result_file_path=None):
 
