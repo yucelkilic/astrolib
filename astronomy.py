@@ -1264,13 +1264,13 @@ class RedOps:
 
         master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
         master_flat = self.make_flat(atmp, master_bias=master_zero,
-                                     filter=fltr, imagetyp=imagetyp_flat)
+                                     filter=filter, imagetyp=imagetyp_flat)
         img_count = len(images.files_filtered(imagetyp=imagetyp_light,
-                                              filter=fltr))
+                                              filter=filter))
 
         for id, filename in enumerate(
                 images.files_filtered(imagetyp=imagetyp_light,
-                                      filter=fltr)):
+                                      filter=filter)):
 
             print(">>> ccdproc is working for: {0}".format(filename))
             
