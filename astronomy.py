@@ -1250,15 +1250,16 @@ class RedOps:
         for fits_file in fitslist:
             fo = FitsOps(fits_file)
             # Extract RA and DEC coordinates from header
+            if filter is not None:
+                if " " in fltr:
+                    fltr = fltr.split(" ")[1]
+                    fo.update_header('filter', fltr)
+
             if filter is None:
                 try:
                     fltr = fo.get_header('filter')
                 except:
                     continue
-
-                if " " in fltr:
-                    fltr = fltr.split(" ")[1]
-                    fo.update_header('filter', fltr)
             else:
                 fltr = filter
 
