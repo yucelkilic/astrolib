@@ -1234,8 +1234,14 @@ class RedOps:
         os.system("cp -rv {0}/*.fit* {1}".format(image_path, atmp))
         print(">>> Scientific images are copied!")
 
-        if not os.path.exists("{0}/BDF/".format(
-                os.path.dirname(image_path.rstrip('/')))):
+        bdf_path_upper = "{0}/BDF/".format(
+                os.path.dirname(image_path.rstrip('/')))
+
+        bdf_path_lower = "{0}/bdf/".format(
+                os.path.dirname(image_path.rstrip('/')))
+
+        if not os.path.exists(bdf_path_upper) or \
+                not os.path.exists(bdf_path_lower):
             print("BDF directory does not exist!")
             raise SystemExit
 
