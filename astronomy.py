@@ -1183,6 +1183,7 @@ class RedOps:
         return(master_flat)
         
     def ccdproc(self, image_path,
+                bdf_path,
                 cosmic_correct=True,
                 filter=None,
                 imagetyp_light='Light',
@@ -1234,19 +1235,12 @@ class RedOps:
         os.system("cp -rv {0}/*.fit* {1}".format(image_path, atmp))
         print(">>> Scientific images are copied!")
 
-        bdf_path_upper = "{0}/BDF/".format(
-                os.path.dirname(image_path.rstrip('/')))
-
-        bdf_path_lower = "{0}/bdf/".format(
-                os.path.dirname(image_path.rstrip('/')))
-
-        if not os.path.exists(bdf_path_upper) or \
-                not os.path.exists(bdf_path_lower):
+        if not os.path.exists(bdf_path):
             print("BDF directory does not exist!")
             raise SystemExit
 
-        os.system("cp -rv {0}/BDF/*.fit* {1}".format(
-            os.path.dirname(image_path.rstrip('/')),
+        os.system("cp -rv {0}/*.fit* {1}".format(
+            bdf_path,
             atmp))
         
         print(">>> Calibration images are copied!")
