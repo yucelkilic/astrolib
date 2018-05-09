@@ -19,6 +19,8 @@ import glob
 import time
 import matplotlib.pyplot as plt
 from .peakdetect import peakdet
+import atpy
+
 
 try:
     import f2n
@@ -157,6 +159,7 @@ class PhotOps:
                        plot_aper_test=False,
                        radius=11,
                        exposure=None,
+                       exportdb=None,
                        gain=0.57,
                        max_mag=20,
                        comp_snr=50):
@@ -176,6 +179,8 @@ class PhotOps:
         @type exposure: float
         @param plot_aper_test: Plot aperture test graph
         @type plot_aper_test: bloean
+        @param exportdb: Export results SQLite3 database
+        @type exportdb: path
         @param gain: gain value for the image expressed in electrons per adu.
         @type gain: float
         @param max_mag: Faintest object limit.
@@ -477,6 +482,8 @@ class PhotOps:
                         else:
                             phot_res_table.write(f_handle,
                                                  format='ascii.no_header')
+
+                        t = atpy.Table("sqlite", exportdb, table="observations")
 
             # Test
             time.sleep(0.2)
