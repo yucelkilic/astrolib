@@ -489,7 +489,8 @@ class PhotOps:
                             phot_res_table.write(f_handle,
                                                  format='ascii.no_header')
                         if exportdb is not None:
-                            phot_res_table.write("sqlite", exportdb, table=db_table)
+                            t = atpy.Table(phot_res_table)
+                            t.write("sqlite", exportdb, table=db_table)
 
             # Test
             time.sleep(0.2)
