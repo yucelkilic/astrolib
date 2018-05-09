@@ -421,11 +421,12 @@ class PhotOps:
                     
                     np_magt_avr_std = [[magt_avr,
                                         magt_std,
-                                        filter] for i in range(
+                                        filter,
+                                        exptime] for i in range(
                         len(np_phot_res))]
                     
                     k = np.array(np_magt_avr_std).reshape(
-                        len(np_magt_avr_std), 3)
+                        len(np_magt_avr_std), 4)
 
                     # numpy array with magt_avr
                     np_phot_res_avg_std = np.concatenate(
@@ -447,7 +448,8 @@ class PhotOps:
                                                   'star_Rmag',
                                                   'magt_avr',
                                                   'magt_std',
-                                                  'filter'),
+                                                  'filter',
+                                                  'exposure'),
                                            dtype=('i4',
                                                   'S25',
                                                   'f8',
@@ -461,7 +463,8 @@ class PhotOps:
                                                   'f8',
                                                   'f8',
                                                   'f8',
-                                                  'U20'))
+                                                  'U20',
+                                                  'f8'))
 
                     phot_res_table['magt_i'].format = '.3f'
                     phot_res_table['magt_i_err'].format = '.3f'
