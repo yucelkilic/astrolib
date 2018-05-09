@@ -160,6 +160,7 @@ class PhotOps:
                        radius=11,
                        exposure=None,
                        exportdb=None,
+                       db_table="asteroids",
                        gain=0.57,
                        max_mag=20,
                        comp_snr=50):
@@ -181,6 +182,8 @@ class PhotOps:
         @type plot_aper_test: bloean
         @param exportdb: Export results SQLite3 database
         @type exportdb: path
+        @param db_table: SQLite3 database table
+        @type db_table: path
         @param gain: gain value for the image expressed in electrons per adu.
         @type gain: float
         @param max_mag: Faintest object limit.
@@ -486,7 +489,7 @@ class PhotOps:
                             phot_res_table.write(f_handle,
                                                  format='ascii.no_header')
 
-                        t = atpy.Table("sqlite", exportdb, table="observations")
+                        t = atpy.Table("sqlite", exportdb, table=db_table)
 
             # Test
             time.sleep(0.2)
