@@ -489,7 +489,6 @@ class PhotOps:
                             phot_res_table.write(f_handle,
                                                  format='ascii.no_header')
                         if sqlite_file is not None:
-                            print(fitsfile, exptime)
                             self.table_to_database(phot_res_table,
                                                    sqlite_file=sqlite_file,
                                                    table_name=table_name)
