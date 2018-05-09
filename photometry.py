@@ -537,16 +537,10 @@ class PhotOps:
 
         row_values = []
         for row in table:
-            row_value = fo.get_header(row)
-            if row_value is None:
-                keyword_value = -9999
-
-            row_values.append(row_value)
-
-        c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
-            tn=table_name,
-            cn=tuple(keywords),
-            vls=tuple(row_values)))
+            c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
+                tn=table_name,
+                cn=tuple(keywords),
+                vls=tuple(row)))
 
         conn.commit()
         conn.close()
