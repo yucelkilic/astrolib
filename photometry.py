@@ -489,7 +489,7 @@ class PhotOps:
                             phot_res_table.write(f_handle,
                                                  format='ascii.no_header')
                         if sqlite_file is not None:
-
+                            print(fitsfile, exptime)
                             self.table_to_database(phot_res_table,
                                                    sqlite_file=sqlite_file,
                                                    table_name=table_name)
@@ -536,7 +536,6 @@ class PhotOps:
         c = conn.cursor()
 
         for row in table:
-            print(row)
             c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
                 tn=table_name,
                 cn=tuple(keywords),
