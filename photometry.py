@@ -535,8 +535,8 @@ class PhotOps:
         conn = sqlite3.connect(sqlite_file)
         c = conn.cursor()
 
-        row_values = []
         for row in table:
+            print(row)
             c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
                 tn=table_name,
                 cn=tuple(keywords),
