@@ -19,7 +19,7 @@ import glob
 import time
 import matplotlib.pyplot as plt
 from .peakdetect import peakdet
-import atpy
+import sqlite3
 
 
 try:
@@ -159,8 +159,8 @@ class PhotOps:
                        plot_aper_test=False,
                        radius=11,
                        exposure=None,
-                       exportdb=None,
-                       db_table="asteroids",
+                       sqlite_file=None,
+                       table_name="asteroids",
                        gain=0.57,
                        max_mag=20,
                        comp_snr=50):
@@ -488,9 +488,12 @@ class PhotOps:
                         else:
                             phot_res_table.write(f_handle,
                                                  format='ascii.no_header')
-                        if exportdb is not None:
-                            t = atpy.Table(phot_res_table)
-                            t.write("sqlite", exportdb, table=db_table)
+                        if sqlite_file is not None:
+
+                            self.table_to_database(phot_res_table,
+                                                   sqlite_file=sqlite_file,
+                                                   table_name=table_name)
+
 
             # Test
             time.sleep(0.2)
@@ -504,6 +507,51 @@ class PhotOps:
             image.tonet('{0}.png'.format(fitshead))
         self.update_progress("Photometry done!", 1)
         return(True)
+
+    def table_to_database(self,
+                          table,
+                          sqlite_file="observations",
+                          table_name="asteroids",
+                          keywords=None):
+
+        if keywords is None:
+            keywords = ['ast_num',
+                        'jd',
+                        'magt_i',
+                        'magt_i_err',
+                        'magc_i',
+                        'magc_i_err',
+                        'magt',
+                        'magt_err',
+                        'ast_mag_cat',
+                        'nomad1',
+                        'star_Rmag',
+                        'magt_avr',
+                        'magt_std',
+                        'filter',
+                        'exposure']
+
+        # Connecting to the database file
+        conn = sqlite3.connect(sqlite_file)
+        c = conn.cursor()
+
+        row_values = []
+        for row in table:
+            row_value = fo.get_header(row)
+            if row_value is None:
+                keyword_value = -9999
+
+            row_values.append(row_value)
+
+        c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
+            tn=table_name,
+            cn=tuple(keywords),
+            vls=tuple(row_values)))
+
+        conn.commit()
+        conn.close()
+
+        return (True)
 
     def find_best_comparison(self, result_table):
 
