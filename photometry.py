@@ -403,7 +403,7 @@ class PhotOps:
 
                         phot_res_list.append([asteroids['num'][i],
                                               jd,
-                                              onight,
+                                              onight.iso,
                                               float(magt_i),
                                               float(magt_i_err),
                                               float(magc_i),
@@ -461,7 +461,7 @@ class PhotOps:
                                                   'exposure'),
                                            dtype=('i4',
                                                   'S25',
-                                                  'S10',
+                                                  'U10',
                                                   'f8',
                                                   'f8',
                                                   'f8',
