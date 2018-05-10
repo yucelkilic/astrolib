@@ -1272,8 +1272,7 @@ class RedOps:
         images = ImageFileCollection(atmp, keywords='*')
 
         master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
-        master_flat = self.make_flat(atmp, master_bias=master_zero,
-                                     filter=filter, imagetyp=imagetyp_flat)
+
         img_count = len(images.files_filtered(imagetyp=imagetyp_light))
 
         for subset_long, subset in filter.items():
@@ -1283,6 +1282,9 @@ class RedOps:
 
             if img_count_by_filter == 0:
                 continue
+
+            master_flat = self.make_flat(atmp, master_bias=master_zero,
+                                         filter=subset, imagetyp=imagetyp_flat)
 
             for id, filename in enumerate(
                     images.files_filtered(imagetyp=imagetyp_light,
