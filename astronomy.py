@@ -1188,6 +1188,7 @@ class RedOps:
                 filter=None,
                 imagetyp_light='Light',
                 imagetyp_bias='Bias',
+                imagetyp_dark='Dark',
                 imagetyp_flat='Flat',
                 oscan_cor=None,
                 trim=None,
@@ -1271,21 +1272,29 @@ class RedOps:
 
             imagetype = fo.get_header('imagetyp')
             if ("bias" in fits_file.lower()) or ("zero" in fits_file.lower()):
-                if imagetype != "Bias":
-                    fo.update_header("imagetyp", "Bias")
-                    print("{0}, IMAGETYP: {1} -> Bias".format(fits_file, imagetype))
+                if imagetype != imagetyp_bias:
+                    fo.update_header("imagetyp", imagetyp_bias)
+                    print("{0}, IMAGETYP: {1} -> {2}".format(fits_file,
+                                                             imagetype,
+                                                             imagetyp_bias))
             elif ("flat" in fits_file.lower()):
-                if imagetype != "Flat":
-                    fo.update_header("imagetyp", "Flat")
-                    print("{0}, IMAGETYP: {1} -> Flat".format(fits_file, imagetype))
+                if imagetype != imagetyp_flat:
+                    fo.update_header("imagetyp", imagetyp_flat)
+                    print("{0}, IMAGETYP: {1} -> {2}".format(fits_file,
+                                                             imagetype,
+                                                             imagetyp_flat))
             elif ("dark" in fits_file.lower()) or ("thermal" in fits_file.lower()):
-                if imagetype != "Dark":
-                    fo.update_header("imagetyp", "Dark")
-                    print("{0}, IMAGETYP: {1} -> Dark".format(fits_file, imagetype))
+                if imagetype != imagetyp_dark:
+                    fo.update_header("imagetyp", imagetyp_dark)
+                    print("{0}, IMAGETYP: {1} -> {2}".format(fits_file,
+                                                             imagetype,
+                                                             imagetyp_dark))
             else:
-                if imagetype != "Light":
-                    fo.update_header("imagetyp", "Light")
-                    print("{0}, IMAGETYP: {1} -> Light".format(fits_file, imagetype))
+                if imagetype != imagetyp_light:
+                    fo.update_header("imagetyp", imagetyp_light)
+                    print("{0}, IMAGETYP: {1} -> {2}".format(fits_file,
+                                                               imagetype,
+                                                               imagetyp_light))
 
         images = ImageFileCollection(atmp, keywords='*')
 
