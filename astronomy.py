@@ -1278,7 +1278,7 @@ class RedOps:
         for subset_long, subset in filter.items():
 
             img_count_by_filter = len(images.files_filtered(imagetyp=imagetyp_light,
-                                                            filter=filter))
+                                                            filter=subset))
 
             if img_count_by_filter == 0:
                 continue
