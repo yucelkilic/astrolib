@@ -1269,6 +1269,24 @@ class RedOps:
             else:
                 continue
 
+            imagetype = fo.get_header('imagetyp')
+            if ("bias" in fits_file.lower()) or ("zero" in fits_file.lower()):
+                if imagetype != "Bias":
+                    fo.update_header("imagetyp", "Bias")
+                    print("{0}, IMAGETYP: {1} -> Bias".format(fits_file, imagetype))
+            elif ("flat" in fits_file.lower()):
+                if imagetype != "Flat":
+                    fo.update_header("imagetyp", "Flat")
+                    print("{0}, IMAGETYP: {1} -> Flat".format(fits_file, imagetype))
+            elif ("dark" in fits_file.lower()) or ("thermal" in fits_file.lower()):
+                if imagetype != "Dark":
+                    fo.update_header("imagetyp", "Dark")
+                    print("{0}, IMAGETYP: {1} -> Dark".format(fits_file, imagetype))
+            else:
+                if imagetype != "Light":
+                    fo.update_header("imagetyp", "Light")
+                    print("{0}, IMAGETYP: {1} -> Light".format(fits_file, imagetype))
+
         images = ImageFileCollection(atmp, keywords='*')
 
         master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
