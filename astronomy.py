@@ -1217,6 +1217,15 @@ class RedOps:
         @type readnoise: float
         @return: bolean
         """
+
+        if filter is None:
+            filter = {"W1:04 U W2:00 Empty": "U",
+                      "W1:04 B W2:00 Empty": "B",
+                      "W1:04 V W2:00 Empty": "V",
+                      "W1:04 R W2:00 Empty": "R",
+                      "W1:04 I W2:00 Empty": "I"}
+        else:
+            filter = filter
         
         chk = sorted(glob.glob("{0}/*.fit*".format(image_path)))
 
@@ -1255,8 +1264,8 @@ class RedOps:
             except:
                 continue
 
-            if filter in fltr:
-                fo.update_header('filter', filter)
+            if fltr in filter:
+                fo.update_header('filter', filter[fltr])
             else:
                 continue
 
@@ -1265,63 +1274,70 @@ class RedOps:
         master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
         master_flat = self.make_flat(atmp, master_bias=master_zero,
                                      filter=filter, imagetyp=imagetyp_flat)
-        img_count = len(images.files_filtered(imagetyp=imagetyp_light,
-                                              filter=filter))
+        img_count = len(images.files_filtered(imagetyp=imagetyp_light))
 
-        for id, filename in enumerate(
-                images.files_filtered(imagetyp=imagetyp_light,
-                                      filter=filter)):
+        for subset_long, subset in filter.items():
 
-            print(">>> ccdproc is working for: {0}".format(filename))
-            
-            hdu = fits.open(images.location + filename)
-            ccd = ccdproc.CCDData(hdu[0].data,
-                                  header=hdu[0].header+hdu[0].header,
-                                  unit=u.adu)
+            img_count_by_filter = len(images.files_filtered(imagetyp=imagetyp_light,
+                                                            filter=filter))
 
-            data_with_deviation = ccdproc.create_deviation(
-                ccd,
-                gain=gain * u.electron/u.adu,
-                readnoise=readnoise * u.electron)
+            if img_count_by_filter == 0:
+                continue
 
-            gain_corrected = ccdproc.gain_correct(data_with_deviation,
-                                                  gain*u.electron/u.adu)
+            for id, filename in enumerate(
+                    images.files_filtered(imagetyp=imagetyp_light,
+                                          filter=subset)):
 
-            print("    [*] Gain correction is done.")
+                print(">>> ccdproc is working for: {0}".format(filename))
 
-            if cosmic_correct:
-                cr_cleaned = ccdproc.cosmicray_lacosmic(gain_corrected,
-                                                        sigclip=5)
-                print("    [*] Cosmic correction is done.")
-            else:
-                del gain_corrected
-                cr_cleaned = gain_corrected
+                hdu = fits.open(images.location + filename)
+                ccd = ccdproc.CCDData(hdu[0].data,
+                                      header=hdu[0].header+hdu[0].header,
+                                      unit=u.adu)
 
-            if oscan_cor:
-                oscan_subtracted = ccdproc.subtract_overscan(
-                    cr_cleaned,
-                    fits_section=oscan_cor,
-                    overscan_axis=1)
-                del cr_cleaned
-                cr_cleaned = oscan_subtracted
+                data_with_deviation = ccdproc.create_deviation(
+                    ccd,
+                    gain=gain * u.electron/u.adu,
+                    readnoise=readnoise * u.electron)
 
-            if trim:
-                trimmed = ccdproc.trim_image(oscan_subtracted,
-                                             fits_section=trim)
+                gain_corrected = ccdproc.gain_correct(data_with_deviation,
+                                                      gain*u.electron/u.adu)
 
-                del oscan_subtracted
-                cr_cleaned = trimmed
+                print("    [*] Gain correction is done.")
 
-            bias_subtracted = ccdproc.subtract_bias(cr_cleaned, master_zero)
-            print("    [*] Bias correction is done.")
-            reduced_image = ccdproc.flat_correct(bias_subtracted, master_flat,
-                                                 min_value=0.9)
-            print("    [*] Flat correction is done.")
+                if cosmic_correct:
+                    cr_cleaned = ccdproc.cosmicray_lacosmic(gain_corrected,
+                                                            sigclip=5)
+                    print("    [*] Cosmic correction is done.")
+                else:
+                    del gain_corrected
+                    cr_cleaned = gain_corrected
 
-            reduced_image.write('{0}/bf_{1}'.format(atmp, filename),
-                                overwrite=True)
-            time.sleep(0.2)
-            self.update_progress(
-                "    [*] ccdproc is done for: {0}".format(filename),
-                (id + 1) / img_count)
+                if oscan_cor:
+                    oscan_subtracted = ccdproc.subtract_overscan(
+                        cr_cleaned,
+                        fits_section=oscan_cor,
+                        overscan_axis=1)
+                    del cr_cleaned
+                    cr_cleaned = oscan_subtracted
+
+                if trim:
+                    trimmed = ccdproc.trim_image(oscan_subtracted,
+                                                 fits_section=trim)
+
+                    del oscan_subtracted
+                    cr_cleaned = trimmed
+
+                bias_subtracted = ccdproc.subtract_bias(cr_cleaned, master_zero)
+                print("    [*] Bias correction is done.")
+                reduced_image = ccdproc.flat_correct(bias_subtracted, master_flat,
+                                                     min_value=0.9)
+                print("    [*] Flat correction is done.")
+
+                reduced_image.write('{0}/bf_{1}'.format(atmp, filename),
+                                    overwrite=True)
+                time.sleep(0.2)
+                self.update_progress(
+                    "    [*] ccdproc is done for: {0}".format(filename),
+                    (id + 1) / img_count)
         return(True)
