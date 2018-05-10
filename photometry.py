@@ -4,8 +4,8 @@ from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import coordinates
 from astropy import units as u
-# from astropy.time import Time
-# from astropy.time import TimeDelta
+from astropy.time import TimeDelta
+from astropy.time import Time
 from astropy.table import Table
 from .catalog import Query
 from .astronomy import FitsOps
@@ -224,6 +224,10 @@ class PhotOps:
             naxis1 = fo.get_header('naxis1')
             naxis2 = fo.get_header('naxis2')
             odate = fo.get_header('date-obs')
+            t1 = Time("{0}".format(odate),
+                      out_subfmt="date")
+            dt = TimeDelta(12 * 3600, format='sec')
+            onight = t1 - dt
             exptime = fo.get_header('exptime')
 
             if exptime is not None and exposure is not None:
@@ -399,6 +403,7 @@ class PhotOps:
 
                         phot_res_list.append([asteroids['num'][i],
                                               jd,
+                                              onight,
                                               float(magt_i),
                                               float(magt_i_err),
                                               float(magc_i),
@@ -415,12 +420,12 @@ class PhotOps:
                         continue
 
                     # magnitude average
-                    magt_avr = np.average(np_phot_res[:, 6].astype(float),
-                                          weights=np_phot_res[:, 7].astype(
+                    magt_avr = np.average(np_phot_res[:, 7].astype(float),
+                                          weights=np_phot_res[:, 8].astype(
                                                float))
 
                     # magt_std calc.
-                    magt_std = np.std(np_phot_res[:, 6].astype(float))
+                    magt_std = np.std(np_phot_res[:, 7].astype(float))
                     
                     np_magt_avr_std = [[magt_avr,
                                         magt_std,
@@ -440,6 +445,7 @@ class PhotOps:
                     phot_res_table = Table(np_phot_res_avg_std,
                                            names=('ast_num',
                                                   'jd',
+                                                  'onight',
                                                   'magt_i',
                                                   'magt_i_err',
                                                   'magc_i',
@@ -455,6 +461,7 @@ class PhotOps:
                                                   'exposure'),
                                            dtype=('i4',
                                                   'S25',
+                                                  'S10',
                                                   'f8',
                                                   'f8',
                                                   'f8',
@@ -516,6 +523,7 @@ class PhotOps:
         if keywords is None:
             keywords = ['ast_num',
                         'jd',
+                        'onight',
                         'magt_i',
                         'magt_i_err',
                         'magc_i',
