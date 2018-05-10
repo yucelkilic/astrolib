@@ -482,6 +482,8 @@ class PhotOps:
                     phot_res_table['magc_i_err'].format = '.3f'
                     phot_res_table['magt'].format = '.3f'
                     phot_res_table['magt_err'].format = '.3f'
+                    phot_res_table['magt_avr'].format = '.3f'
+                    phot_res_table['magt_std'].format = '.3f'
 
                     with open('{0}/{1}.txt'.format(
                             os.getcwd(),
