@@ -321,9 +321,12 @@ class PhotOps:
 
                         npsnr = np.array(snr)
                         maxtab, mintab = peakdet(npsnr[:, 1], 0.1)
-                        aper_radius = maxtab[:, 0][0]
-                        print("Aperture calculated: {0} px".format(
-                            aper_radius))
+                        try:
+                            aper_radius = maxtab[:, 0][0]
+                            print("Aperture calculated: {0} px".format(
+                                aper_radius))
+                        except IndexError:
+                            continue
                         
                         if plot_aper_test:
                             plt.title(asteroids['num'][i])
