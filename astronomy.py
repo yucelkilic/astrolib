@@ -507,7 +507,11 @@ class AstCalc:
                                                      dec,
                                                      image_path))
             # Cleaning
-            root, extension = path.splitext(image_path)
+            if ".gz" in image_path:
+                root = '.'.join(image_path.split('.')[:-2])
+            else:
+                root, extension = path.splitext(image_path)
+
             system(("rm -rf {0}-indx.png {0}-indx.xyls "
                     "{0}-ngc.png {0}-objs.png "
                     "{0}.axy {0}.corr "
