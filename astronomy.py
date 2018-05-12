@@ -35,7 +35,8 @@ class FitsOps:
         warnings.simplefilter('ignore', category=AstropyWarning)
         self.file_name = file_name
         self.timeops = TimeOps()
-        self.hdu = fits.open(self.file_name, "readonly")
+        self.hdu = fits.open(self.file_name)
+        self.hdu.verify("fix")
 
     def return_out_file_header(self, observer="YK", tel="TUG 100", code="A84",
                                contact="yucelkilic@myrafproject.org",
@@ -1124,6 +1125,65 @@ class RedOps:
         print(">>> Master bias file is created.")
         return(master_bias)
 
+    def make_dark(self, image_path, out_file=False,
+                  gain=0.57, readnoise=4.11, imagetyp='Dark'):
+
+        """
+        Creates master bias file.
+        @param image_path: Directory of Dark FITS files.
+        @type image_path: path
+        @param out_file: Save master dark file?
+        @type out_file: boolean
+        @param gain: gain value for the image expressed in electrons per adu.
+        @type gain: float
+        @param readnoise: Read noise for the observations (in electrons).
+        @type readnoise: float
+        @return: bolean
+        """
+
+        images = ImageFileCollection(image_path, keywords='*')
+
+        dark_list = []
+        if len(images.files_filtered(imagetyp=imagetyp)) == 0:
+            print("Could not find any DARK file!")
+            raise SystemExit
+
+        dark_exptimes = []
+        for filename in images.files_filtered(imagetyp=imagetyp):
+            fo = FitsOps(images.location + filename)
+            dark_exptime = fo.get_header("exptime")
+            dark_exptimes.append(dark_exptime)
+
+        dark_exptimes = list(sorted(set(dark_exptimes)))
+
+        for dark_exptime in dark_exptimes:
+            master_darks = {}
+            for filename in images.files_filtered(imagetyp=imagetyp,
+                                                  exptime=dark_exptime):
+                ccd = ccdproc.CCDData.read(images.location + filename,
+                                           unit=u.adu)
+
+                data_with_deviation = ccdproc.create_deviation(
+                    ccd,
+                    gain=gain * u.electron/u.adu,
+                    readnoise=readnoise * u.electron)
+
+                gain_corrected = ccdproc.gain_correct(data_with_deviation,
+                                                      gain*u.electron/u.adu)
+
+                dark_list.append(gain_corrected)
+
+            master_darks[dark_exptime] = ccdproc.combine(dark_list, method='median')
+
+            if out_file:
+                head, tail = os.path.split(image_path)
+                master_darks[dark_exptime].write("{0}/master_dark_{1}.fits".format(head,
+                                                                    dark_exptime),
+                                                 overwrite=True)
+
+        print(">>> Master bias file is created.")
+        return master_darks
+
     def make_flat(self, image_path, out_file=False, filter=None,
                   imagetyp='Flat',
                   master_bias=None,
@@ -1304,6 +1364,9 @@ class RedOps:
 
         master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
 
+        master_darks = self.make_zero(atmp, imagetyp=imagetyp_dark)
+
+
         img_count = len(images.files_filtered(imagetyp=imagetyp_light))
 
         for subset_long, subset in filter.items():
@@ -1325,7 +1388,7 @@ class RedOps:
 
                 hdu = fits.open(images.location + filename)
                 ccd = ccdproc.CCDData(hdu[0].data,
-                                      header=hdu[0].header+hdu[0].header,
+                                      header=hdu[0].header,
                                       unit=u.adu)
 
                 data_with_deviation = ccdproc.create_deviation(
@@ -1361,10 +1424,23 @@ class RedOps:
                     del oscan_subtracted
                     cr_cleaned = trimmed
 
-                bias_subtracted = ccdproc.subtract_bias(cr_cleaned, master_zero)
+                bias_subtracted = ccdproc.subtract_bias(cr_cleaned, master_zero,
+                                                        add_keyword={'calib': 'subtracted bias by astrolib'})
+
                 print("    [*] Bias correction is done.")
-                reduced_image = ccdproc.flat_correct(bias_subtracted, master_flat,
-                                                     min_value=0.9)
+
+
+                dark_subtracted = ccdproc.subtract_dark(bias_subtracted,
+                                                        master_darks[bias_subtracted.header['exptime']],
+                                                        exposure_time='exptime',
+                                                        exposure_unit=u.second,
+                                                        add_keyword={'calib': 'subtracted dark by astrolib'})
+                
+                print("    [*] Dark correction is done.")
+
+                reduced_image = ccdproc.flat_correct(dark_subtracted, master_flat,
+                                                     min_value=0.9,
+                                                     add_keyword={'calib': 'corrected flat by astrolib'})
                 print("    [*] Flat correction is done.")
 
                 reduced_image.write('{0}/bf_{1}'.format(atmp, filename),
