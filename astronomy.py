@@ -1182,7 +1182,7 @@ class RedOps:
                                                                     dark_exptime),
                                                  overwrite=True)
 
-        print(">>> Master bias file is created.")
+        print(">>> Master dark file is created.")
         return master_darks
 
     def make_flat(self, image_path, out_file=False, filter=None,
