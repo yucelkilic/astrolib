@@ -465,7 +465,7 @@ class PhotOps:
                                                   'magt_std',
                                                   'filter',
                                                   'exposure'),
-                                           dtype=('i4',
+                                           dtype=('U10',
                                                   'S25',
                                                   'U10',
                                                   'f8',
