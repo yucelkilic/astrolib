@@ -1461,7 +1461,7 @@ class RedOps:
                                                      add_keyword={'calib': 'corrected flat by astrolib'})
                 print("    [*] Flat correction is done.")
 
-                reduced_image.write('{0}/bf_{1}'.format(atmp, filename),
+                reduced_image.write('{0}/bdf_{1}'.format(atmp, filename),
                                     overwrite=True)
                 time.sleep(0.2)
                 self.update_progress(
