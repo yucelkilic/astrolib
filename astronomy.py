@@ -35,8 +35,9 @@ class FitsOps:
         warnings.simplefilter('ignore', category=AstropyWarning)
         self.file_name = file_name
         self.timeops = TimeOps()
-        self.hdu = fits.open(self.file_name)
-        self.hdu.verify("fix")
+
+        with fits.open(self.file_name, mode='update') as self.hdu:
+            self.hdu[0].add_checksum()
 
     def return_out_file_header(self, observer="YK", tel="TUG 100", code="A84",
                                contact="yucelkilic@myrafproject.org",
@@ -1428,7 +1429,6 @@ class RedOps:
                                                         add_keyword={'calib': 'subtracted bias by astrolib'})
 
                 print("    [*] Bias correction is done.")
-
 
                 dark_subtracted = ccdproc.subtract_dark(bias_subtracted,
                                                         master_darks[bias_subtracted.header['exptime']],
