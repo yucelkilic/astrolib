@@ -1157,6 +1157,8 @@ class RedOps:
 
         dark_exptimes = list(sorted(set(dark_exptimes)))
 
+        print(">>> Dark exposures: {0}".format(dark_exptimes))
+
         for dark_exptime in dark_exptimes:
             master_darks = {}
             for filename in images.files_filtered(imagetyp=imagetyp,
@@ -1365,7 +1367,7 @@ class RedOps:
 
         master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
 
-        master_darks = self.make_zero(atmp, imagetyp=imagetyp_dark)
+        master_darks = self.make_dark(atmp, imagetyp=imagetyp_dark)
 
 
         img_count = len(images.files_filtered(imagetyp=imagetyp_light))
@@ -1434,6 +1436,7 @@ class RedOps:
                                                         master_darks[bias_subtracted.header['exptime']],
                                                         exposure_time='exptime',
                                                         exposure_unit=u.second,
+                                                        scale=True,
                                                         add_keyword={'calib': 'subtracted dark by astrolib'})
                 
                 print("    [*] Dark correction is done.")
