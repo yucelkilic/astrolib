@@ -358,8 +358,9 @@ class PhotOps:
                                                    max_mag=19.5)
 
                         s_comptable = sb.sort_stars(comptable, min_mag_ast)
-                    else:
-                        continue
+
+                        if len(s_comptable) == 0:
+                            continue
 
                     phot_res_list = []
 
