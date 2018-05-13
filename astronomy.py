@@ -1440,7 +1440,15 @@ class RedOps:
                                                             scale=True,
                                                             add_keyword={'calib': 'subtracted dark by astrolib'})
                 except KeyError:
-                    print(min(master_darks, key=lambda x: abs(x - bias_subtracted.header['exptime'])))
+                    # Some dark's exposure time is not a exact value like 200.0
+                    closest_exp = min(master_darks, key=lambda x: abs(x - bias_subtracted.header['exptime']))
+                    dark_subtracted = ccdproc.subtract_dark(bias_subtracted,
+                                                            master_darks[closest_exp],
+                                                            exposure_time='exptime',
+                                                            exposure_unit=u.second,
+                                                            scale=True,
+                                                            add_keyword={'calib': 'subtracted dark by astrolib'})
+
 
 
 
