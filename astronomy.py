@@ -1432,12 +1432,19 @@ class RedOps:
 
                 print("    [*] Bias correction is done.")
 
-                dark_subtracted = ccdproc.subtract_dark(bias_subtracted,
-                                                        master_darks[bias_subtracted.header['exptime']],
-                                                        exposure_time='exptime',
-                                                        exposure_unit=u.second,
-                                                        scale=True,
-                                                        add_keyword={'calib': 'subtracted dark by astrolib'})
+                try:
+                    dark_subtracted = ccdproc.subtract_dark(bias_subtracted,
+                                                            master_darks[bias_subtracted.header['exptime']],
+                                                            exposure_time='exptime',
+                                                            exposure_unit=u.second,
+                                                            scale=True,
+                                                            add_keyword={'calib': 'subtracted dark by astrolib'})
+                except KeyError:
+                    print(min(master_darks, key=lambda x: abs(x - bias_subtracted.header['exptime'])))
+
+
+
+
                 
                 print("    [*] Dark correction is done.")
 
