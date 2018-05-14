@@ -1289,7 +1289,7 @@ class RedOps:
         if filter is None:
             filter = {"W1:04 U W2:00 Empty": "U",
                       "W1:04 B W2:00 Empty": "B",
-                      "W1:04 V W2:00 Empty": "V",
+                      "W1:03 V W2:00 Empty": "V",
                       "W1:04 R W2:00 Empty": "R",
                       "W1:04 I W2:00 Empty": "I"}
         else:
