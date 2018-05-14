@@ -1259,6 +1259,9 @@ class RedOps:
                 imagetyp_flat='Flat',
                 oscan_cor=None,
                 trim=None,
+                bias_cor=None,
+                dark_cor=None,
+                flat_cor=None,
                 gain=0.57,
                 readnoise=4.11):
 
@@ -1365,9 +1368,11 @@ class RedOps:
 
         images = ImageFileCollection(atmp, keywords='*')
 
-        master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
+        if bias_cor is not None:
+            master_zero = self.make_zero(atmp, imagetyp=imagetyp_bias)
 
-        master_darks = self.make_dark(atmp, imagetyp=imagetyp_dark)
+        if dark_cor is not None:
+            master_darks = self.make_dark(atmp, imagetyp=imagetyp_dark)
 
 
         img_count = len(images.files_filtered(imagetyp=imagetyp_light))
@@ -1380,8 +1385,9 @@ class RedOps:
             if img_count_by_filter == 0:
                 continue
 
-            master_flat = self.make_flat(atmp, master_bias=master_zero,
-                                         filter=subset, imagetyp=imagetyp_flat)
+            if flat_cor is not None:
+                master_flat = self.make_flat(atmp, master_bias=master_zero,
+                                             filter=subset, imagetyp=imagetyp_flat)
 
             for id, filename in enumerate(
                     images.files_filtered(imagetyp=imagetyp_light,
@@ -1427,39 +1433,52 @@ class RedOps:
                     del oscan_subtracted
                     cr_cleaned = trimmed
 
-                bias_subtracted = ccdproc.subtract_bias(cr_cleaned, master_zero,
+                if bias_cor is not None:
+                    bias_subtracted = ccdproc.subtract_bias(cr_cleaned, master_zero,
                                                         add_keyword={'calib': 'subtracted bias by astrolib'})
 
-                print("    [*] Bias correction is done.")
+                    dark_input_image = bias_subtracted
 
-                try:
-                    dark_subtracted = ccdproc.subtract_dark(bias_subtracted,
-                                                            master_darks[bias_subtracted.header['exptime']],
-                                                            exposure_time='exptime',
-                                                            exposure_unit=u.second,
-                                                            scale=True,
-                                                            add_keyword={'calib': 'subtracted dark by astrolib'})
-                except KeyError:
-                    # Some dark's exposure time is not a exact value like 200.0
-                    closest_exp = min(master_darks, key=lambda x: abs(x - bias_subtracted.header['exptime']))
-                    dark_subtracted = ccdproc.subtract_dark(bias_subtracted,
-                                                            master_darks[closest_exp],
-                                                            exposure_time='exptime',
-                                                            exposure_unit=u.second,
-                                                            scale=True,
-                                                            add_keyword={'calib': 'subtracted dark by astrolib'})
+                    print("    [*] Bias correction is done.")
+                else:
+
+                    dark_input_image = cr_cleaned
+
+                if dark_cor is not None:
+                    try:
+                        dark_subtracted = ccdproc.subtract_dark(dark_input_image,
+                                                                master_darks[dark_input_image.header['exptime']],
+                                                                exposure_time='exptime',
+                                                                exposure_unit=u.second,
+                                                                scale=True,
+                                                                add_keyword={'calib': 'subtracted dark by astrolib'})
+                    except KeyError:
+                        # Some dark's exposure time is not a exact value like 200.0
+                        closest_exp = min(master_darks, key=lambda x: abs(x - dark_input_image.header['exptime']))
+                        dark_subtracted = ccdproc.subtract_dark(dark_input_image,
+                                                                master_darks[closest_exp],
+                                                                exposure_time='exptime',
+                                                                exposure_unit=u.second,
+                                                                scale=True,
+                                                                add_keyword={'calib': 'subtracted dark by astrolib'})
 
 
-
-
-
+                    flat_input_image = dark_subtracted
                 
-                print("    [*] Dark correction is done.")
+                    print("    [*] Dark correction is done.")
+                else:
+                    if bias_cor is None:
+                        flat_input_image = cr_cleaned
+                    else:
+                        flat_input_image = dark_input_image
 
-                reduced_image = ccdproc.flat_correct(dark_subtracted, master_flat,
-                                                     min_value=0.9,
-                                                     add_keyword={'calib': 'corrected flat by astrolib'})
-                print("    [*] Flat correction is done.")
+                if flat_cor is not None:
+                    reduced_image = ccdproc.flat_correct(flat_input_image, master_flat,
+                                                         min_value=0.9,
+                                                         add_keyword={'calib': 'corrected flat by astrolib'})
+                    print("    [*] Flat correction is done.")
+                else:
+                    reduced_image = flat_input_image
 
                 reduced_image.write('{0}/bdf_{1}'.format(atmp, filename),
                                     overwrite=True)
