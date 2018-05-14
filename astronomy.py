@@ -1259,9 +1259,9 @@ class RedOps:
                 imagetyp_flat='Flat',
                 oscan_cor=None,
                 trim=None,
-                bias_cor=None,
-                dark_cor=None,
-                flat_cor=None,
+                bias_cor=True,
+                dark_cor=True,
+                flat_cor=True,
                 gain=0.57,
                 readnoise=4.11):
 
