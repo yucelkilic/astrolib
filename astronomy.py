@@ -31,13 +31,16 @@ import warnings
 
 class FitsOps:
 
-    def __init__(self, file_name):
+    def __init__(self, file_name, checksum=True):
         warnings.simplefilter('ignore', category=AstropyWarning)
         self.file_name = file_name
         self.timeops = TimeOps()
 
-        with fits.open(self.file_name, mode='update') as self.hdu:
-            self.hdu[0].add_checksum()
+        if checksum is True:
+            with fits.open(self.file_name, mode='update') as self.hdu:
+                self.hdu[0].add_checksum()
+        else:
+            self.hdu = fits.open(self.file_name)
 
     def return_out_file_header(self, observer="YK", tel="TUG 100", code="A84",
                                contact="yucelkilic@myrafproject.org",
@@ -1461,7 +1464,6 @@ class RedOps:
                                                                 exposure_unit=u.second,
                                                                 scale=True,
                                                                 add_keyword={'calib': 'subtracted dark by astrolib'})
-
 
                     flat_input_image = dark_subtracted
                 
