@@ -443,19 +443,27 @@ class StarPlot:
 
         # plt.show()
 
-    def find_best_comp(self, result_file_path=None):
+    def find_best_comp(self, result_file_path=None,
+                       best_comparison_star=None):
 
         result_file = Table.read(result_file_path,
                                  format='ascii.commented_header')
 
         # read comparison star list
-        result_unique_by_cat = table.unique(result_file, keys='nomad1')
+        # and check manual assigned comp star
+        if best_comparison_star is None:
+            result_unique_by_cat = table.unique(result_file, keys='nomad1')
+        else:
+            result_unique_by_cat = table.unique(
+                result_file[(result_file['nomad1'] == best_comparison_star)],
+                                                keys='nomad1')
 
         std_list = []
         t_c_list = []
         # calculates diff_mag for all target objects and comp. stars
         for star in result_unique_by_cat['nomad1']:
             frame_results = result_file[(result_file['nomad1'] == star)]
+
             # diff phot.
             frame_results['t-c'] = frame_results['magt_i'] - frame_results['magc_i']
             # error propagation
@@ -484,6 +492,7 @@ class StarPlot:
         return results
 
     def lc_plot_diff_mag(self, result_file_path=None,
+                         best_comparison_star=None,
                          mark_color="blue",
                          bar_color="red"):
 
@@ -498,7 +507,8 @@ class StarPlot:
         lc_ast_diff = plt.figure()
         gs = gridspec.GridSpec(2, 1, height_ratios=[6, 2])
 
-        results = self.find_best_comp(result_file_path=result_file_path)['with_mean_comp']
+        results = self.find_best_comp(result_file_path=result_file_path,
+                                      best_comparison_star=best_comparison_star)['with_mean_comp']
 
         filtered_jd_vs_mag_diff = sigma_clip(results['t-c'],
                                          sigma=3,
