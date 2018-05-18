@@ -1297,7 +1297,8 @@ class RedOps:
                       "W1:02 B W2:00 Empty": "B",
                       "W1:03 V W2:00 Empty": "V",
                       "W1:04 R W2:00 Empty": "R",
-                      "W1:04 I W2:00 Empty": "I"}
+                      "W1:04 I W2:00 Empty": "I",
+                      "W1:00 Empty W2:00 Empty": "C"}
         else:
             filter = filter
         
