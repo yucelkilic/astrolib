@@ -341,7 +341,7 @@ class PhotOps:
                                         color='yellow')
                             plt.show()
 
-                    magt_i = ac.flux2mag(flux)
+                    magt_i = ac.flux2mag(flux, float(exptime))
                     magt_i_err = fluxerr / flux * 2.5 / math.log(10)
 
                     min_mag_ast = float(asteroids['m_v'][i]) - 2
@@ -391,7 +391,7 @@ class PhotOps:
                         if (flux / fluxerr) <= comp_snr:
                             continue
                     
-                        magc_i = ac.flux2mag(flux)
+                        magc_i = ac.flux2mag(flux, float(exptime))
                         magc_i_err = fluxerr / flux * 2.5 / math.log(10)
 
                         try:
