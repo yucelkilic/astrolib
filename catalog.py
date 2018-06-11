@@ -227,6 +227,23 @@ class Query:
                     min_mag=10,
                     max_mag=20,
                     max_sources=100):
+        """
+
+        Query NOMAD object
+        @param ra: RA of field center for search, format: degrees or hh:mm:ss
+        @type ra: str
+        @param dec: DEC of field center for search, format: degrees or hh:mm:ss
+        @type dec: str
+        @param radius: Radius.
+        @type radius: float
+        @param min_mag: Minimum magnitude value of query.
+        @type min_mag: float
+        @param max_mag: Maximum magnitude value of query.
+        @type max_mag: float
+        @param max_sources: Maximum strs to be queried..
+        @type max_sources: int
+        @return: astropy.table
+        """
 
         c = coord.SkyCoord(ra,
                            dec,
