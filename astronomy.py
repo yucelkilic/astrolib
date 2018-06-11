@@ -252,6 +252,8 @@ class AstCalc:
         @type x: float
         @param y: y coordinate of object.
         @type y: float
+        @param sep: delimiter for HMSDMS format.
+        @type sep: float
         @return: str
         """
 
@@ -387,10 +389,10 @@ class AstCalc:
 
         @param image_path: FITS image file name with path.
         @type image_path: str
-        @param RA: RA coordinate of object.
-        @type RA: string
-        @param DEC: DEC coordinate of object.
-        @type DEC: string
+        @param ra: RA coordinate of object.
+        @type ra: string
+        @param dec: DEC coordinate of object.
+        @type dec: string
         @return: tuple
         """
 
@@ -399,8 +401,6 @@ class AstCalc:
         else:
             print("FITS image has not been provided by the user!")
             raise SystemExit
-
-        data = hdu.data.astype(float)
 
         fo = FitsOps(image_path)
         header = hdu.header
