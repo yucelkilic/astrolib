@@ -125,6 +125,36 @@ class Weather:
         return(tug.astropy_time_to_datetime(mt),
                tug.astropy_time_to_datetime(et))
 
+    def nautical_twilight(self, date_obs,
+                              site_longitude=30.335555,
+                              site_latitude=36.824166,
+                              site_elevation=2500,
+                              site_name="tug",
+                              time_zone="Europe/Istanbul",
+                              which="next"):
+
+        # TUG's location info settings
+        tug = Observer(longitude=site_longitude*u.deg,
+                       latitude=site_latitude*u.deg,
+                       elevation=site_elevation*u.m,
+                       name=site_name,
+                       timezone=time_zone)
+
+        # convert date astropy date format
+        astropy_time = Time(date_obs)
+
+        # evening tw calculate
+        et = tug.twilight_evening_nautical(astropy_time,
+                                               which=which)
+
+        # morning tw calculate
+        mt = tug.twilight_morning_nautical(astropy_time,
+                                               which=which)
+
+        # localized time conversion
+        return(tug.astropy_time_to_datetime(mt),
+               tug.astropy_time_to_datetime(et))
+
     def daily_bad_weather_report(self, date_obs, station="T60",
                                  site_longitude=30.335555,
                                  site_latitude=36.824166,
@@ -141,7 +171,7 @@ class Weather:
         # d = datetime.strptime(date_obs, "%Y-%m-%dT%H:%M:%S")
         # date_obs = d.strftime("%Y-%m-%d")
 
-        mt_before, et_before = self.astronomical_twilight(
+        mt_before, et_before = self.nautical_twilight(
             date_obs,
             site_longitude,
             site_latitude,
@@ -155,7 +185,7 @@ class Weather:
 
         # date from after mid
         end_date = date(int(year), int(month), int(day)) + timedelta(1)
-        mt_after, et_after = self.astronomical_twilight(
+        mt_after, et_after = self.nautical_twilight(
             end_date.strftime("%Y-%m-%d"),
             site_longitude,
             site_latitude,
