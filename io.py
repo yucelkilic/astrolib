@@ -113,7 +113,7 @@ class FileOps:
                                     dirname="/mnt/data/images",
                                     fits_ext=".fts",
                                     header2sqlite=False,
-                                    sqlite_file="gozlemler.sqlite"):
+                                    sqlite_file="observation.db"):
 
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -162,8 +162,8 @@ class FileOps:
         return (latestfile)
 
     def fitshead_to_database(self, fits_file,
-                             sqlite_file="gozlemler.sqlite",
-                             table_name="gozlemler",
+                             sqlite_file="observations.db",
+                             table_name="T60",
                              keywords=None):
 
         if keywords is None:
