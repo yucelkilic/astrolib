@@ -216,7 +216,8 @@ class FileOps:
                 value = fo.get_header(keyword)
 
                 if value is not None:
-                    pid, object_name = str(value).split("_")
+                    pid = value.split("_")[0]
+                    object_name = value.split("_")[1]
                 else:
                     pid = -9999
                     object_name = -9999
