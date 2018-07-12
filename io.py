@@ -217,7 +217,7 @@ class FileOps:
 
                 if value is not None:
                     pid = value.split("_")[0]
-                    object_name = value.split("_")[1]
+                    object_name = value.split("_")[1:]
                 else:
                     pid = -9999
                     object_name = -9999
