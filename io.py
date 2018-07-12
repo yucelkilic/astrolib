@@ -210,16 +210,30 @@ class FileOps:
 
         fo = FitsOps(fits_file)
         keyword_values = []
+        table_headers = []
         for keyword in keywords:
-            keyword_value = fo.get_header(keyword)
-            if keyword_value is None:
-                keyword_value = -9999
-                    
-            keyword_values.append(keyword_value)
+            if keyword == "object":
+                value = fo.get_header(keyword)
+
+                if value is not None:
+                    pid, object_name = str(value).split("_")
+                else:
+                    pid = -9999
+                    object_name = -9999
+                table_headers.append(pid)
+                table_headers.append(object_name)
+                keyword_values.append(pid)
+                keyword_values.append(object_name)
+            else:
+                keyword_value = fo.get_header(keyword)
+                if keyword_value is None:
+                    keyword_value = -9999
+                table_headers.append(keyword)
+                keyword_values.append(keyword_value)
                             
         c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
             tn=table_name,
-            cn=tuple(keywords),
+            cn=tuple(table_headers),
             vls=tuple(keyword_values)))
 
         conn.commit()
