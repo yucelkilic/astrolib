@@ -221,8 +221,8 @@ class FileOps:
                 else:
                     pid = -9999
                     object_name = -9999
-                table_headers.append(pid)
-                table_headers.append(object_name)
+                table_headers.append("pid")
+                table_headers.append("object_name")
                 keyword_values.append(pid)
                 keyword_values.append(object_name)
             else:
