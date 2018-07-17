@@ -23,6 +23,79 @@ import os
 
 class StarPlot:
 
+    def object_plot(self, image_path, ra, dec, mark_color="red"):
+
+        """
+        Source plot module.
+        @param image_data: data part of the FITS image
+        @type image_data: numpy array
+        @param ra: RA coordinate of object, skycoords.
+        @type ra: string
+        @param dec: DEC coordinate of object, skycoords.
+        @type dec: string
+        @param mark_color: Color of the plot marks
+        @type mark_color: str
+        @returns: boolean
+        """
+
+        if image_path:
+            hdu = fits.open(image_path)[0]
+        else:
+            print("No image provided!")
+            raise SystemExit
+
+        rcParams['figure.figsize'] = [10., 8.]
+
+        wcs = WCS(hdu.header)
+        ax = plt.subplot(projection=wcs)
+
+        data = hdu.data.astype(float)
+
+        bkg = sep.Background(data)
+        # bkg_image = bkg.back()
+        # bkg_rms = bkg.rms()
+        data_sub = data - bkg
+
+        m, s = np.mean(data_sub), np.std(data_sub)
+        ax.imshow(data_sub, interpolation='nearest',
+                  cmap='gray', vmin=(m-s), vmax=(m+s), origin='lower')
+
+        # plot an ellipse for each object
+        co = coordinates.SkyCoord('{0} {1}'.format(ra, dec),
+                                  unit=(u.hourangle, u.deg),
+                                  frame='icrs')
+        print('Target Coordinates:',
+              co.to_string(style='hmsdms', sep=':'))
+
+        p = Circle((co.ra.degree, co.dec.degree), 0.005,
+                   edgecolor=mark_color,
+                   facecolor='none',
+                   transform=ax.get_transform('icrs'))
+        ax.text(co.ra.degree,
+                co.dec.degree - 0.007,
+                "object",
+                size=12,
+                color='black',
+                ha='center',
+                va='center',
+                transform=ax.get_transform('icrs'))
+
+
+
+        ax.coords.grid(True, color='white', ls='solid')
+        ax.coords[0].set_axislabel('Galactic Longitude')
+        ax.coords[1].set_axislabel('Galactic Latitude')
+
+        overlay = ax.get_coords_overlay('icrs')
+        overlay.grid(color='white', ls='dotted')
+        overlay[0].set_axislabel('Right Ascension (ICRS)')
+        overlay[1].set_axislabel('Declination (ICRS)')
+
+        ax.add_patch(p)
+        plt.gca().invert_yaxis()
+        plt.show()
+        return True
+
     def star_plot(self, image_data, objects, mark_color="red"):
 
         """
