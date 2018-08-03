@@ -85,7 +85,11 @@ class FileOps:
             quit()
 
         sftp = ssh.open_sftp()
-        sftp.chdir(dirname)
+
+        try:
+            sftp.chdir(dirname)
+        except FileNotFoundError:
+            print("Folder not found!")
 
         ret = False
 
