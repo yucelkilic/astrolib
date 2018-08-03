@@ -85,9 +85,11 @@ NET {6}""".format(code, observer, observer, tel,
 
         try:
             header_key = self.hdu[0].header[key]
-            return(header_key)
+            ret = header_key
         except Exception as e:
-            print(e)
+            ret = False
+
+        return ret
 
     def update_header(self, key, value):
 
