@@ -85,7 +85,6 @@ class FileOps:
             quit()
 
         sftp = ssh.open_sftp()
-
         try:
             sftp.chdir(dirname)
         except FileNotFoundError:
@@ -98,7 +97,10 @@ class FileOps:
                     fits_ext in fileattr.filename:
                 sftp.get(fileattr.filename, fileattr.filename)
                 if header2sqlite is True:
-                    self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
+                    f2db = self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
+                    if f2db is False:
+                        print(">>> Something wrong with the FITS file: {0}".format(fileattr.filename))
+                        continue
                 ret = True
                 print("{0} => {1}".format(fileattr.filename,
                                           fileattr.filename))
@@ -170,6 +172,8 @@ class FileOps:
                              table_name="T60",
                              keywords=None):
 
+        print(">>> FITS2DB: {0}".format(fits_file))
+
         if keywords is None:
             keywords = ['xfactor',
                         'yfactor',
@@ -212,16 +216,36 @@ class FileOps:
         conn = sqlite3.connect(sqlite_file)
         c = conn.cursor()
 
-        fo = FitsOps(fits_file)
+        try:
+            fo = FitsOps(fits_file)
+        except Exception as e:
+            print(e)
+            return False
+            
         keyword_values = []
         table_headers = []
+        fits_name = os.path.basename(fits_file)
+        keyword_values.append(fits_name)
+        table_headers.append("fits_name")
         for keyword in keywords:
             if keyword == "object":
                 value = fo.get_header(keyword)
-
                 if value is not None:
-                    pid = value.split("_")[0]
-                    object_name = "_".join(value.split("_")[1:])
+                    object_name = value
+                    band = str(fo.get_header("filter")).strip()
+                    try:
+                        if "+" in fits_name:
+                            pid = fits_name[(fits_name.index("+") + 5):(fits_name.index(band) - 3)]
+                        elif "-" in fits_name:
+                            pid = fits_name[(fits_name.index("-") + 5):(fits_name.index(band) - 3)]
+                        elif "ldt" in fits_name:
+                            pid = "STD"
+                        else:
+                            pid = -9999
+                    except ValueError:
+                        pid = -9999
+
+                    print("PID: {0}".format(pid))
                 else:
                     pid = -9999
                     object_name = -9999
@@ -235,6 +259,9 @@ class FileOps:
                     keyword_value = -9999
                 table_headers.append(keyword)
                 keyword_values.append(keyword_value)
+
+        print(table_headers)
+        print(keyword_values)
                             
         c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
             tn=table_name,
