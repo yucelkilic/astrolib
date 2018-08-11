@@ -5,6 +5,7 @@ from astropy.table import Table
 from .io import FileOps
 from .astronomy import FitsOps
 from .astronomy import TimeOps
+from .astronomy import AstCalc
 import numpy as np
 import sep
 from os import system
@@ -99,6 +100,7 @@ class Query:
                                   gaia_obj[0][9],
                                   gaia_obj[0][10],
                                   gaia_obj[0][11],
+                                  ds['mag'][i],
                                   ds['flux'][i],
                                   ds['a'][i],
                                   ds['b'][i],
@@ -129,6 +131,7 @@ class Query:
                                                    'e_pmdec',
                                                    'epoch',
                                                    'plx',
+                                                   'mag',
                                                    'flux',
                                                    'a',
                                                    'b',

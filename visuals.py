@@ -44,7 +44,7 @@ class StarPlot:
             print("No image provided!")
             raise SystemExit
 
-        rcParams['figure.figsize'] = [10., 8.]
+        rcParams['figure.figsize'] = [15., 12.]
 
         wcs = WCS(hdu.header)
         ax = plt.subplot(projection=wcs)
@@ -110,7 +110,7 @@ class StarPlot:
         @returns: boolean
         """
 
-        rcParams['figure.figsize'] = [10., 8.]
+        rcParams['figure.figsize'] = [15., 12.]
 
         # plot background-subtracted image
         fig, ax = plt.subplots()
@@ -174,7 +174,7 @@ class StarPlot:
         from .catalog import Query
 
         # filename = get_pkg_data_filename(image_path)
-        rcParams['figure.figsize'] = [10., 8.]
+        rcParams['figure.figsize'] = [15., 12.]
         # rcParams.update({'font.size': 10})
 
         if image_path:

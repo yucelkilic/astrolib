@@ -39,6 +39,7 @@ class FitsOps:
         if checksum is True:
             with fits.open(self.file_name, mode='update') as self.hdu:
                 self.hdu[0].add_checksum()
+            self.hdu = fits.open(self.file_name)
         else:
             self.hdu = fits.open(self.file_name)
 
@@ -106,11 +107,35 @@ NET {6}""".format(code, observer, observer, tel,
         try:
             hdu = fits.open(self.file_name, mode='update')
             hdu[0].header[key] = value
-            return(hdu.close())
+            hdu.close()
         except Exception as e:
             print(e)
+            return False
 
-    def detect_sources(self, plot=False, skycoords=False, max_sources=50):
+        return True
+
+    def remove_header_keyword(self, keyword):
+
+        """
+        Remove keyword from FITS header.
+
+        @param keyword: Requested keyword to be removed.
+        @type keyword: str
+        @return: str
+        """
+
+        try:
+            hdu = fits.open(self.file_name, mode='update')
+            hdu[0].header.remove(keyword)
+            print("{0} keyword has beed deleted!".format(keyword))
+            hdu.close()
+        except Exception as e:
+            return False
+
+        return True
+
+
+    def detect_sources(self, plot=False, skycoords=False, max_sources=50, exp_keyword="exptime"):
 
         """
         It detects sources on FITS image with sep module.
@@ -122,7 +147,6 @@ NET {6}""".format(code, observer, observer, tel,
         @type max_sources: int
         @return: astropy.table
         """
-
         data = self.hdu[0].data.astype(float)
         bkg = sep.Background(data)
         data_sub = data - bkg
@@ -142,23 +166,28 @@ NET {6}""".format(code, observer, observer, tel,
             splt = StarPlot()
             splt.star_plot(data_sub, objects)
 
+        ac = AstCalc()
         if skycoords:
             xy2sky2_ops = AstCalc()
             objects_ra = []
             objects_dec = []
+            objects_mag = []
             for j in range(len(objects)):
                 objects_sky = xy2sky2_ops.xy2sky2(self.file_name,
                                                   objects['x'][j],
                                                   objects['y'][j])
                 objects_ra.append(objects_sky.ra.degree)
                 objects_dec.append(objects_sky.dec.degree)
-                
+                exptime = float(self.hdu[0].header[exp_keyword])
+                objects_mag.append(ac.flux2mag(objects['flux'][j], exptime))
+
             print("{0} objects detected.".format(len(objects)))
             col_ra_calc = Table.Column(name='ra_calc', data=objects_ra)
             col_dec_calc = Table.Column(name='dec_calc', data=objects_dec)
+            col_mag = Table.Column(name='mag', data=objects_mag)
             tobjects = Table(objects)
-            tobjects.add_columns([col_ra_calc, col_dec_calc])
-            return(tobjects)
+            tobjects.add_columns([col_ra_calc, col_dec_calc, col_mag])
+            return tobjects
         else:
             print("{0} objects detected.".format(len(objects)))
             return(Table(objects))
@@ -244,6 +273,27 @@ class AstCalc:
         except Exception as e:
             pass
 
+    def deg2hmsdms(self, ra, dec):
+
+        """
+        Converts string RA, DEC coordinates to astropy format.
+        @param ra: RA of field center for search, format: degrees or hh:mm:ss
+        @type ra: str
+        @param dec: DEC of field center for search, format: degrees or hh:mm:ss
+        @type dec: str
+        @return: list
+        """
+
+        try:
+            c = coordinates.SkyCoord(ra, dec, frame='icrs', unit='deg')
+
+            hmsdms = c.to_string(style='hmsdms', sep=":", precision=2)
+        except Exception as e:
+            print(e)
+            return False
+
+        return hmsdms
+
     def xy2sky(self, file_name, x, y, sep=":"):
 
         """
@@ -298,6 +348,7 @@ class AstCalc:
             return(astcoords[0])
 
         except Exception as e:
+            print(e)
             pass
 
     def xy2skywcs(self, file_name, x, y):
