@@ -1357,8 +1357,14 @@ class RedOps:
                       "W1:00 Empty W2:00 Empty": "C"}
         else:
             filter = filter
-        
-        chk = sorted(glob.glob("{0}/*.fit*".format(image_path)))
+
+        types = (image_path + '/*.fits', image_path + '/*.fit', image_path + '/*.fts')  # the tuple of file types
+        fits_grabbed = []
+
+        for fits_files in types:
+            fits_grabbed.extend(glob.glob(fits_files))
+
+        chk = sorted(fits_grabbed)
 
         if len(chk) == 0:
             print("No FITS image found in {0}!".format(image_path))
@@ -1372,20 +1378,22 @@ class RedOps:
 
         # copy all files to temp
 
-        os.system("cp -rv {0}/*.fit* {1}".format(image_path, atmp))
+        os.system("cp -rv {0}/*.f*t* {1}".format(image_path, atmp))
         print(">>> Scientific images are copied!")
 
-        if not os.path.exists(bdf_path):
+        if not os.path.exists(bdf_path) and bias_cor is not None \
+                and dark_cor is not None and flat_cor is not None:
             print("BDF directory does not exist!")
             raise SystemExit
 
-        os.system("cp -rv {0}/*.fit* {1}".format(
-            bdf_path,
-            atmp))
+        if len(glob.glob("{0}/*.f*t*".format(bdf_path))) > 0:
+            os.system("cp -rv {0}/*.f*t* {1}".format(
+                    bdf_path,
+                    atmp))
         
         print(">>> Calibration images are copied!")
 
-        fitslist = sorted(glob.glob("{0}/*.fit*".format(atmp)))
+        fitslist = sorted(glob.glob("{0}/*.f*t*".format(atmp)))
 
         for fits_file in fitslist:
             fo = FitsOps(fits_file)
