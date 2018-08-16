@@ -5,7 +5,6 @@ from astropy.table import Table
 from .io import FileOps
 from .astronomy import FitsOps
 from .astronomy import TimeOps
-from .astronomy import AstCalc
 import numpy as np
 import sep
 from os import system
@@ -145,8 +144,6 @@ class Query:
             from .visuals import StarPlot
             data = fo.hdu[0].data.astype(float)
             bkg = sep.Background(data)
-            # bkg_image = bkg.back()
-            # bkg_rms = bkg.rms()
             data_sub = data - bkg
             splt = StarPlot()
 
