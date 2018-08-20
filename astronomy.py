@@ -135,7 +135,8 @@ NET {6}""".format(code, observer, observer, tel,
         return True
 
 
-    def detect_sources(self, plot=False, skycoords=False, max_sources=50, exp_keyword="exptime"):
+    def detect_sources(self, plot=False, skycoords=False, max_sources=50,
+                       exp_keyword="exptime"):
 
         """
         It detects sources on FITS image with sep module.
@@ -145,6 +146,8 @@ NET {6}""".format(code, observer, observer, tel,
         @type skycoords: boolean
         @param max_sources: Maximum detection limit.
         @type max_sources: int
+        @type exp_keyword: String
+        @param exp_keyword: EXPTIME keyword in FITS header
         @return: astropy.table
         """
         data = self.hdu[0].data.astype(float)
@@ -206,6 +209,7 @@ NET {6}""".format(code, observer, observer, tel,
                     'Stdev': np.std(image_data)})
         except Exception as e:
             print(e)
+            return False
 
             
 class AstCalc:
