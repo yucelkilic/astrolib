@@ -19,6 +19,14 @@ class Weather:
             yield start_date + timedelta(n)
 
     def read_davis_data_from_archive(self, date_obs, station="T60"):
+        """
+        It reads wxview result data from meteo station.
+        @param date_obs
+        @type date_obs: date
+        @param station: Station name: T60|T100|RTT150.
+        @type station: string
+        @return: astropy.table
+        """
 
         year, month, day = re.split('[- :/.]', date_obs)
 
