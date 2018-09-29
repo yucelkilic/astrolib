@@ -113,6 +113,24 @@ class Weather:
                               site_name="tug",
                               time_zone="Europe/Istanbul",
                               which="next"):
+        """
+        It calculates astronomical twilight.
+        @param date_obs
+        @type date_obs: date
+        @param site_longitude: Site longitude.
+        @type site_longitude: float
+        @param site_latitude: Site latitude.
+        @type site_latitude: float
+        @param site_elevation: Site elevation.
+        @type site_elevation: float
+        @param site_name: Station name: T60|T100|RTT150.
+        @type site_name: string
+        @param time_zone: Time zone.
+        @type time_zone: int
+        @param which: Which.
+        @type which: string
+        @return: tuple
+        """
 
         # TUG's location info settings
         tug = Observer(longitude=site_longitude*u.deg,
