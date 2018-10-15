@@ -191,7 +191,8 @@ class Weather:
                                  site_name="tug",
                                  time_zone="Europe/Istanbul",
                                  humidity_limit=85,
-                                 wind_limit=36):
+                                 wind_limit=36,
+                                 twilight="nautical"):
 
         year, month, day = re.split('[- :/.]', date_obs)
 
@@ -212,15 +213,27 @@ class Weather:
             date_obs,
             station=station)
 
-        # date from after mid
-        end_date = date(int(year), int(month), int(day)) + timedelta(1)
-        mt_after, et_after = self.nautical_twilight(
-            end_date.strftime("%Y-%m-%d"),
-            site_longitude,
-            site_latitude,
-            site_elevation,
-            site_name,
-            time_zone)
+        if twilight is "nautical":
+            # date from after mid
+            end_date = date(int(year), int(month), int(day)) + timedelta(1)
+            mt_after, et_after = self.nautical_twilight(
+                end_date.strftime("%Y-%m-%d"),
+                site_longitude,
+                site_latitude,
+                site_elevation,
+                site_name,
+                time_zone)
+        elif twilight is "astronomical":
+            # date from after mid
+            end_date = date(int(year), int(month), int(day)) + timedelta(1)
+            mt_after, et_after = self.astronomical_twilight(
+                end_date.strftime("%Y-%m-%d"),
+                site_longitude,
+                site_latitude,
+                site_elevation,
+                site_name,
+                time_zone)
+
 
         davis_data_after_mid = self.read_davis_data_from_archive(
             end_date.strftime("%Y-%m-%d"),
