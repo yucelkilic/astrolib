@@ -6,8 +6,9 @@ import numpy as np
 import urllib
 import re
 
-from astropy.table import Table
+from astropy.table import Table, vstack
 from astropy.time import Time
+from astropy.time import TimeDelta
 import astropy.units as u
 from astroplan import Observer
 
@@ -201,20 +202,18 @@ class Weather:
         # d = datetime.strptime(date_obs, "%Y-%m-%dT%H:%M:%S")
         # date_obs = d.strftime("%Y-%m-%d")
 
-        mt_before, et_before = self.nautical_twilight(
-            date_obs,
-            site_longitude,
-            site_latitude,
-            site_elevation,
-            site_name,
-            time_zone)
-
-        davis_data_before_mid = self.read_davis_data_from_archive(
-            date_obs,
-            station=station)
 
         if twilight is "nautical":
             # date from after mid
+
+            mt_before, et_before = self.nautical_twilight(
+                date_obs,
+                site_longitude,
+                site_latitude,
+                site_elevation,
+                site_name,
+                time_zone)
+
             end_date = date(int(year), int(month), int(day)) + timedelta(1)
             mt_after, et_after = self.nautical_twilight(
                 end_date.strftime("%Y-%m-%d"),
@@ -225,6 +224,15 @@ class Weather:
                 time_zone)
         elif twilight is "astronomical":
             # date from after mid
+
+            mt_before, et_before = self.astronomical_twilight(
+                date_obs,
+                site_longitude,
+                site_latitude,
+                site_elevation,
+                site_name,
+                time_zone)
+
             end_date = date(int(year), int(month), int(day)) + timedelta(1)
             mt_after, et_after = self.astronomical_twilight(
                 end_date.strftime("%Y-%m-%d"),
@@ -234,69 +242,66 @@ class Weather:
                 site_name,
                 time_zone)
 
+        davis_data_before_mid = self.read_davis_data_from_archive(
+            date_obs,
+            station=station)
 
         davis_data_after_mid = self.read_davis_data_from_archive(
             end_date.strftime("%Y-%m-%d"),
             station=station)
 
+        davis_data = vstack([davis_data_before_mid, davis_data_after_mid])
+
         # calculate dark night time
         tw_dates = [et_before, mt_after]
-        t = Time(tw_dates)
+        t = Time(tw_dates) + TimeDelta(time.timezone * -1, format='sec')
         dark_hours = (t[1].jd - t[0].jd) * 24
 
-        if davis_data_before_mid is not False:
-            good_check = int((Time("{0}T23:59:00".format(date_obs)) - t[0]).sec / 300)
-            coonection_check = int((Time("{0}T23:59:00".format(date_obs)) -
-                                    Time(str(davis_data_before_mid['Timestamp'][len(davis_data_before_mid) - 1]))).sec / 300)
-            if good_check > coonection_check:
-                bad_data_before_mid = davis_data_before_mid[
-                    ((davis_data_before_mid['Timestamp'] >= np.datetime64(et_before)) &
-                     (davis_data_before_mid['Humid'] >= humidity_limit)) |
-                    ((davis_data_before_mid['Timestamp'] >= np.datetime64(et_before)) &
-                     (davis_data_before_mid['Wind'] >= wind_limit))]
-                bad_data_before_mid = ["bad"] * (len(bad_data_before_mid) + coonection_check)
+        if davis_data is not False:
+            davis_data['jd'] = Time(davis_data['Timestamp'].astype("str")).jd
+
+            date_obs_davis_data_jd = davis_data[(davis_data['jd'] >= t[0].jd) & (davis_data['jd'] <= t[1].jd)]
+            bad_data = date_obs_davis_data_jd[(date_obs_davis_data_jd['Humid'] > humidity_limit) |
+                                              (date_obs_davis_data_jd['Wind'] >= wind_limit)]
+
+            bad_data_diff_sec = np.diff(bad_data['jd']) * 86400.0
+            daily_bad_weather_times = bad_data_diff_sec[bad_data_diff_sec <= 1800.0]
+            interrupt_cnt = len(bad_data_diff_sec[bad_data_diff_sec > 1800.0])
+
+            if len(bad_data['jd']) > 0:
+                first_data = 5
             else:
-                bad_data_before_mid = ["bad"] * int((Time("{0}T23:59:00".format(date_obs)) - t[0]).sec / 300)
+                first_data = 0
+
+            total_bad_weather_time = (np.sum(daily_bad_weather_times) / 3600.0) + (interrupt_cnt * 5.0 / 60.0) \
+                                     + (first_data / 60.0)
+
+            humid_data = bad_data[(bad_data['Humid'] > humidity_limit)]
+            wind_data = bad_data[(bad_data['Wind'] >= wind_limit)]
+
+            humid_cnt = len(humid_data)
+            wind_cnt = len(wind_data)
+
+            if (humid_cnt + wind_cnt) == 1:
+                weather_alert_time = 0.5
+                total_bad_weather_time = (5.0 * (humid_cnt + wind_cnt) / 60.0) + weather_alert_time
+
+            if wind_cnt == 0 and humid_cnt == 0:
+                weather_status = "Clear"
+            elif humid_cnt > 0 and wind_cnt == 0:
+                weather_status = "Humid"
+            elif wind_cnt > 0 and humid_cnt == 0:
+                weather_status = "Windy"
+            elif wind_cnt > 0 and humid_cnt > 0:
+                weather_status = "HumidWindy"
         else:
-            bad_data_before_mid = ["bad"] *  int((Time("{0}T23:59:00".format(date_obs)) - t[0]).sec / 300)
+            total_bad_weather_time = dark_hours
+            weather_status = "NoConnection"
 
-        if davis_data_after_mid is not False:
-            good_check = int((t[1] - Time("{0}T00:00:00".format(end_date.strftime("%Y-%m-%d")))).sec / 300)
-            coonection_check = int((Time(str(davis_data_after_mid['Timestamp'][len(davis_data_after_mid) - 1])) -
-                                    Time("{0}T00:00:00".format(end_date.strftime("%Y-%m-%d")))).sec / 300)
-            if coonection_check > good_check:
-                bad_data_after_mid = davis_data_after_mid[
-                    ((davis_data_after_mid['Timestamp'] <= np.datetime64(mt_after)) &
-                     (davis_data_after_mid['Humid'] >= humidity_limit)) |
-                    ((davis_data_after_mid['Timestamp'] <= np.datetime64(mt_after)) &
-                     (davis_data_after_mid['Wind'] >= wind_limit))]
-
-                bad_data_after_mid = ["bad"] * (len(bad_data_after_mid))
-            elif coonection_check < good_check:
-                bad_data_after_mid = davis_data_after_mid[
-                    ((davis_data_after_mid['Timestamp'] <= np.datetime64(mt_after)) &
-                     (davis_data_after_mid['Humid'] >= humidity_limit)) |
-                    ((davis_data_after_mid['Timestamp'] <= np.datetime64(mt_after)) &
-                     (davis_data_after_mid['Wind'] >= wind_limit))]
-
-                bad_data_after_mid = ["bad"] * (len(bad_data_after_mid) + coonection_check)
-            else:
-                bad_data_after_mid = ["bad"] * int(
-                    (t[1] - Time("{0}T00:00:00".format(end_date.strftime("%Y-%m-%d")))).sec / 300)
-
-        else:
-            bad_data_after_mid = ["bad"] *  int(
-                (t[1] - Time("{0}T00:00:00".format(end_date.strftime("%Y-%m-%d")))).sec / 300)
-
-            # print(bad_data_before_mid['Timestamp', 'Humid', 'Wind'])
-            # print(bad_data_after_mid['Timestamp', 'Humid', 'Wind'])
-
-        total_bad_weather_time = ((len(bad_data_before_mid) +
-                                   len(bad_data_after_mid)) * 5) / 60.0
-
-        return(date_obs,
-               '{0:.2f}'.format(dark_hours),
-               '{0:.2f}'.format(total_bad_weather_time))
+        return (date_obs,
+                '{0:.2f}'.format(dark_hours),
+                '{0:.2f}'.format(total_bad_weather_time),
+                weather_status)
 
     def long_term_bad_weather_report(self, start_date,
                                      end_date,
@@ -332,7 +337,7 @@ class Weather:
 
             for single_date in self.daterange(start_date, end_date):
                 odate = single_date.strftime("%Y-%m-%d")
-                dt, dark_hours, bad_time = self.daily_bad_weather_report(
+                dt, dark_hours, bad_time, weather_status = self.daily_bad_weather_report(
                     odate,
                     station,
                     site_longitude,
@@ -343,10 +348,10 @@ class Weather:
                     humidity_limit,
                     wind_limit)
 
-                print(dt, dark_hours, bad_time)
+                print(dt, dark_hours, bad_time, weather_status)
                 out.write("{0} {1} {2}\n".format(dt,
                                                  dark_hours,
-                                                 bad_time))
+                                                 bad_time, weather_status))
 
         print("Long term bad weather report has been written "
               "to {0}_bad_weather_report-{1}_{2}.txt".format(
