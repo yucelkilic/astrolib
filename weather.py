@@ -250,7 +250,10 @@ class Weather:
             end_date.strftime("%Y-%m-%d"),
             station=station)
 
-        davis_data = vstack([davis_data_before_mid, davis_data_after_mid])
+        if (davis_data_before_mid and davis_data_after_mid) is not False:
+            davis_data = vstack([davis_data_before_mid, davis_data_after_mid])
+        else:
+            davis_data = False
 
         # calculate dark night time
         tw_dates = [et_before, mt_after]
