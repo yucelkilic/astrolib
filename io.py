@@ -33,6 +33,24 @@ class FileOps:
             print(e)
 
 
+    def read_table_as_array(self, file_name):
+
+        """
+        Reads A-Track result file into numpy array.
+        @param file_name: Text file name and path
+        @type file_name: str
+        @return: array
+        """
+
+        try:
+            data = np.genfromtxt(file_name,
+                                 delimiter = None,
+                                 dtype = "|U30")
+            return (data[~np.isnan(data).any(axis=1)])
+        except Exception as e:
+            return False
+
+
     def read_sch_file(self, file_name):
 
         """
