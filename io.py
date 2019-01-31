@@ -6,6 +6,7 @@ import paramiko
 import os
 import sqlite3
 from .astronomy import FitsOps
+from .astronomy import AstCalc
 from datetime import datetime
 
 
@@ -32,9 +33,7 @@ class FileOps:
         except Exception as e:
             print(e)
 
-
-    def read_table_as_array(self, file_name):
-
+    def read_table_as_array(self, file_name, delimiter=None):
         """
         Reads A-Track result file into numpy array.
         @param file_name: Text file name and path
@@ -42,13 +41,11 @@ class FileOps:
         @return: array
         """
 
-        try:
-            data = np.genfromtxt(file_name,
-                                 delimiter = None,
-                                 dtype = "|U30")
-            return (data[~np.isnan(data).any(axis=1)])
-        except Exception as e:
-            return False
+        data = np.genfromtxt(file_name,
+                             delimiter=delimiter,
+                             dtype="|U30")
+        return data
+
 
 
     def read_sch_file(self, file_name):
@@ -112,6 +109,21 @@ class FileOps:
         except Exception as e:
             print(e)
             return False
+
+    def csv_to_sch_files(self, csv_file, delimiter=","):
+
+        """
+        Reads object list and creates sch_files.
+        @param csv_file: Text file name and path
+        @type csv_file: str
+        @return: file
+        """
+
+        objects = self.read_table_as_array(csv_file, delimiter=",")
+
+        for object in objects:
+            aco = AstCalc()
+            print(object[0], aco.deg2hmsdms(object[2], object[3]))
 
 
     def create_sch_file(self, out_file_path="./", pid="3141", target_name="tug", ra=None,
