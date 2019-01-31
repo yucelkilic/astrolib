@@ -110,7 +110,7 @@ class FileOps:
             print(e)
             return False
 
-    def csv_to_sch_files(self, csv_file, delimiter=","):
+    def csv_to_sch_files(self, csv_file, out_file_path="./", delimiter=","):
 
         """
         Reads object list and creates sch_files.
@@ -120,10 +120,54 @@ class FileOps:
         """
 
         objects = self.read_table_as_array(csv_file, delimiter=",")
+        filters_in_wheel = ["C",
+                   "U",
+                   "B",
+                   "V",
+                   "R",
+                   "I",
+                   "u",
+                   "g",
+                   "r",
+                   "z",
+                   "H-beta"]
 
         for object in objects:
             aco = AstCalc()
-            print(object[0], aco.deg2hmsdms(object[2], object[3]))
+
+            pid = object[0]
+            target_name = object[1].replace(".", "_")
+            ra = aco.deg2hmsdms(object[2], object[3]).split(" ")[0]
+            dec = aco.deg2hmsdms(object[2], object[3]).split(" ")[1]
+
+            subsets = []
+            durations = []
+            for fw in filters_in_wheel:
+                if fw in object[4]:
+                    filters = object[4].split(";")
+                    for filter_and_duration in filters:
+                        if fw in filter_and_duration:
+                            filter, duration = filter_and_duration.split("=")
+                            filter = filter.replace("{", "")
+                            duration = duration.replace("}", "")
+                            subsets.append(filter)
+                            durations.append(duration)
+
+            priority = 1
+            repeat = object[5]
+
+            print(pid, target_name, ra, dec, ",".join(subsets), ",".join(durations), priority, repeat, sep=",")
+
+            self.create_sch_file(out_file_path=out_file_path,
+                                 pid=pid,
+                                 target_name=target_name,
+                                 ra=ra,
+                                 dec=dec,
+                                 subsets=",".join(subsets),
+                                 durations=",".join(durations),
+                                 priority=1,
+                                 repeat=repeat)
+        return True
 
 
     def create_sch_file(self, out_file_path="./", pid="3141", target_name="tug", ra=None,
@@ -177,6 +221,8 @@ BLOCKREPEAT = 1
                                                pid, target_name), "w") as file:
                 file.write(sch_template)
                 file.close()
+
+            print(">>> {0}_{1}.sch file created in {2}".format(pid, target_name, out_file_path))
 
             return True
             
