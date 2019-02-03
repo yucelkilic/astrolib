@@ -120,17 +120,8 @@ class FileOps:
         """
 
         objects = self.read_table_as_array(csv_file, delimiter=",")
-        filters_in_wheel = ["C",
-                   "U",
-                   "B",
-                   "V",
-                   "R",
-                   "I",
-                   "u",
-                   "g",
-                   "r",
-                   "z",
-                   "H-beta"]
+        filters_in_wheel = ["C", "U", "B", "V", "R", "I",
+                            "u", "g", "r", "z", "H-alpha", "H-beta"]
 
         for object in objects:
             aco = AstCalc()
