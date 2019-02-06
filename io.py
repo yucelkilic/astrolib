@@ -5,6 +5,7 @@ import numpy as np
 import paramiko
 import os
 import sqlite3
+import mysql.connector
 from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
@@ -109,6 +110,37 @@ class FileOps:
         except Exception as e:
             print(e)
             return False
+
+
+
+    def pts_to_sch(self, host, user, passwd, out_file_path="./", delimiter=","):
+
+        """
+        Reads object list and creates sch_files.
+        @param csv_file: Text file name and path
+        @type csv_file: str
+        @return: file
+        """
+
+        """
+        
+        mydb = mysql.connector.connect(
+            host="localhost",
+            user="yourusername",
+            passwd="yourpassword"
+        )
+        """
+
+        print(mydb)
+
+        objects = self.read_table_as_array(csv_file, delimiter=",")
+        filters_in_wheel = ["C", "U", "B", "V", "R", "I",
+                            "u", "g", "r", "z", "H-alpha", "H-beta"]
+
+        for object in objects:
+            aco = AstCalc()
+
+            pid = object[0]
 
     def csv_to_sch_files(self, csv_file, out_file_path="./", delimiter=","):
 
