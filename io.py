@@ -151,7 +151,7 @@ class FileOps:
         @return: file
         """
 
-        objects = self.read_table_as_array(csv_file, delimiter=",")
+        objects = self.read_table_as_array(csv_file, delimiter=delimiter)
         filters_in_wheel = ["C", "U", "B", "V", "R", "I",
                             "u", "g", "r", "z", "H-alpha", "H-beta"]
 
@@ -179,7 +179,7 @@ class FileOps:
             priority = 1
             repeat = object[5]
 
-            print(pid, target_name, ra, dec, ",".join(subsets), ",".join(durations), priority, repeat, sep=",")
+            print(pid, target_name, ra, dec, ",".join(subsets), ",".join(durations), priority, repeat)
 
             self.create_sch_file(out_file_path=out_file_path,
                                  pid=pid,
@@ -191,6 +191,39 @@ class FileOps:
                                  priority=1,
                                  repeat=repeat)
         return True
+
+    def get_unique_filter_duration(self, csv_file, delimiter=","):
+
+        """
+        Reads object list and returns filters and durations.
+        @param csv_file: Text file name and path
+        @type csv_file: str
+        @return: file
+        """
+
+        objects = self.read_table_as_array(csv_file, delimiter=delimiter)
+        filters_in_wheel = ["C", "U", "B", "V", "R", "I",
+                            "u", "g", "r", "z", "H-alpha", "H-beta"]
+
+        subsets = []
+        durations = []
+
+        for object in objects:
+            aco = AstCalc()
+            for fw in filters_in_wheel:
+                if fw in object[4]:
+                    filters = object[4].split(";")
+                    for filter_and_duration in filters:
+                        if fw in filter_and_duration:
+                            filter, duration = filter_and_duration.split("=")
+                            filter = filter.replace("{", "")
+                            duration = duration.replace("}", "")
+                            if filter not in subsets:
+                                subsets.append(filter)
+                            if float(duration) not in durations:
+                                durations.append(float(duration))
+
+        return {'filters': subsets, 'durations': sorted(durations)}
 
 
     def create_sch_file(self, out_file_path="./", pid="3141", target_name="tug", ra=None,
