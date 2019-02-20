@@ -9,6 +9,7 @@ import mysql.connector
 from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
+from astropy.table import Table
 
 
 class FileOps:
@@ -111,7 +112,36 @@ class FileOps:
             print(e)
             return False
 
+    def print_sch_file(self, schs_path):
 
+        """
+        Reads text file into numpy array.
+        @param file_name: Text file name and path
+        @type file_name: str
+        @return: array
+        """
+
+        sch_files = sorted(glob.glob("{0}/*.sch".format(schs_path)))
+        project_proper = []
+        for file_name in sch_files:
+            sch_dict = self.read_sch_file(file_name)
+
+            filter_and_durations = []
+            for i, filter in enumerate(sch_dict['FILTER']):
+                filter_and_durations.append("{0}({1})".format(filter, sch_dict['DURATION'][i]))
+
+            project_proper.append([sch_dict['SOURCE'], sch_dict['RA'], sch_dict['DEC'], " ".join(filter_and_durations),
+                                   sch_dict['REPEAT']])
+
+        project_proper_np = np.asarray(project_proper)
+
+        project_proper_tbl = Table(project_proper_np, names=('source',
+                                                             'ra',
+                                                             'dec',
+                                                             'filter(exp)',
+                                                             'repeat'))
+
+        return project_proper_tbl
 
     def pts_to_sch(self, host, user, passwd, out_file_path="./", delimiter=","):
 
@@ -135,14 +165,14 @@ class FileOps:
 
         objects = self.read_table_as_array(csv_file, delimiter=",")
         filters_in_wheel = ["C", "U", "B", "V", "R", "I",
-                            "u", "g", "r", "z", "H-alpha", "H-beta"]
+                            "u", "g", "r", "i", "z", "H-alpha", "H-beta"]
 
         for object in objects:
             aco = AstCalc()
 
             pid = object[0]
 
-    def csv_to_sch_files(self, csv_file, out_file_path="./", delimiter=","):
+    def csv_to_sch_files(self, csv_file, out_file_path="./", delimiter=",", priority=[]):
 
         """
         Reads object list and creates sch_files.
@@ -153,18 +183,21 @@ class FileOps:
 
         objects = self.read_table_as_array(csv_file, delimiter=delimiter)
         filters_in_wheel = ["C", "U", "B", "V", "R", "I",
-                            "u", "g", "r", "z", "H-alpha", "H-beta"]
+                            "u", "g", "r", "i", "z", "H-alpha", "H-beta"]
 
         for object in objects:
             aco = AstCalc()
 
             pid = object[0]
             target_name = object[1].replace(".", "_")
-            ra = aco.deg2hmsdms(object[2], object[3]).split(" ")[0]
-            dec = aco.deg2hmsdms(object[2], object[3]).split(" ")[1]
+            target_name = target_name.replace("+", "_")
+            target_name = target_name.replace("-", "_")
+            ra = aco.deg2hmsdms(object[2], object[3]).split(" ")[0][:-3]
+            dec = aco.deg2hmsdms(object[2], object[3]).split(" ")[1][:-3]
 
             subsets = []
             durations = []
+
             for fw in filters_in_wheel:
                 if fw in object[4]:
                     filters = object[4].split(";")
@@ -176,10 +209,13 @@ class FileOps:
                             subsets.append(filter)
                             durations.append(duration)
 
-            priority = 1
+            if len(priority) > 0:
+                prior = priority.index(int(pid)) + 1
+            else:
+                prior = 1
             repeat = object[5]
 
-            print(pid, target_name, ra, dec, ",".join(subsets), ",".join(durations), priority, repeat)
+            print(pid, target_name, ra, dec, ",".join(subsets), ",".join(durations), prior, repeat)
 
             self.create_sch_file(out_file_path=out_file_path,
                                  pid=pid,
@@ -188,7 +224,7 @@ class FileOps:
                                  dec=dec,
                                  subsets=",".join(subsets),
                                  durations=",".join(durations),
-                                 priority=1,
+                                 priority=prior,
                                  repeat=repeat)
         return True
 
@@ -203,7 +239,7 @@ class FileOps:
 
         objects = self.read_table_as_array(csv_file, delimiter=delimiter)
         filters_in_wheel = ["C", "U", "B", "V", "R", "I",
-                            "u", "g", "r", "z", "H-alpha", "H-beta"]
+                            "u", "g", "r", "i", "z", "H-alpha", "H-beta"]
 
         subsets = []
         durations = []
