@@ -124,6 +124,8 @@ class FileOps:
         sch_files = sorted(glob.glob("{0}/*.sch".format(schs_path)))
         project_proper = []
         total_duration = []
+        exposures = []
+        filters = []
         for file_name in sch_files:
             sch_dict = self.read_sch_file(file_name)
 
@@ -132,6 +134,8 @@ class FileOps:
             for i, filter in enumerate(sch_dict['FILTER']):
                 filter_and_durations.append("{0}({1})".format(filter, sch_dict['DURATION'][i]))
                 durations += float(sch_dict['DURATION'][i])
+                exposures.append(float(sch_dict['DURATION'][i]))
+                filters.append(sch_dict['FILTER'][i])
 
             total_duration.append(durations * float(sch_dict['REPEAT']))
 
@@ -145,6 +149,8 @@ class FileOps:
                                                              'dec',
                                                              'filter(exp)',
                                                              'repeat'))
+        print("Used filters: {0}".format(sorted(set(filters))))
+        print("Used exposures: {0}".format(sorted(set(exposures))))
         print("Total observation time: {0} s".format(sum(total_duration)))
         return project_proper_tbl
 
@@ -627,7 +633,7 @@ BLOCKREPEAT = 1
                 value = fo.get_header(keyword)
                 if value is not None:
                     object_name = value
-                    band = str(fo.get_header("filter")).strip()
+                    band = str(fo.get_header("filter")).strip()[0]
                     try:
                         if "+" in fits_name:
                             pid = fits_name[(fits_name.index("+") + 5):(fits_name.index(band) - 3)]
