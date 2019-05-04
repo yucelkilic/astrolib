@@ -133,8 +133,15 @@ class FileOps:
             durations = 0
             for i, filter in enumerate(sch_dict['FILTER']):
                 filter_and_durations.append("{0}({1})".format(filter, sch_dict['DURATION'][i]))
-                durations += float(sch_dict['DURATION'][i])
-                exposures.append(float(sch_dict['DURATION'][i]))
+                try:
+                    durations += float(sch_dict['DURATION'][i])
+                except ValueError:
+                    durations += 0
+                try:
+                    exposures.append(float(sch_dict['DURATION'][i]))
+                except ValueError:
+                    exposures.append(0)
+                
                 filters.append(sch_dict['FILTER'][i])
 
             total_duration.append(durations * float(sch_dict['REPEAT']))
