@@ -112,18 +112,25 @@ class FileOps:
             print(e)
             return False
 
-    def print_sch_file(self, schs_path):
+    def print_sch_file(self, schs_path, dT=60, dF=2, dS=5):
 
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
         @type file_name: str
+        @param dT: Time consumed for a single pointing
+        @type float
+        @param dF: Time consumed in changing the filters
+        @type float
+        @param dS: Time consumed in downloading the frame from CCD
+        @type float
         @return: array
         """
 
         sch_files = sorted(glob.glob("{0}/*.sch".format(schs_path)))
         project_proper = []
-        total_duration = []
+        total_exposure_time = []
+        total_observation_time = []
         exposures = []
         filters = []
         for file_name in sch_files:
@@ -144,7 +151,10 @@ class FileOps:
                 
                 filters.append(sch_dict['FILTER'][i])
 
-            total_duration.append(durations * float(sch_dict['REPEAT']))
+            total_exposure_time.append(durations * float(sch_dict['REPEAT']))
+            total_observation_time.append(
+                dT + (float(sch_dict['REPEAT']) * len(sch_dict['FILTER']) * (dF + dS)) +
+                (float(sch_dict['REPEAT']) * durations))
 
             project_proper.append([sch_dict['SOURCE'], sch_dict['RA'], sch_dict['DEC'], " ".join(filter_and_durations),
                                    sch_dict['REPEAT']])
@@ -158,7 +168,9 @@ class FileOps:
                                                              'repeat'))
         print("Used filters: {0}".format(sorted(set(filters))))
         print("Used exposures: {0}".format(sorted(set(exposures))))
-        print("Total observation time: {0} s".format(sum(total_duration)))
+        print("Total exposure time: {0} s".format(sum(total_exposure_time)))
+        print("Total observation time: {0} s".format(sum(total_observation_time)))
+        print("Total objects : {0}".format(len(project_proper_tbl)))
         return project_proper_tbl
 
     def pts_to_sch(self, host, user, passwd, out_file_path="./", delimiter=","):
