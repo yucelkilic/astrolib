@@ -19,7 +19,6 @@ class FileOps:
         return(datetime.strptime(datestr.decode('ascii'), datefrmt))
 
     def read_file_as_array(self, file_name):
-
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
@@ -48,10 +47,7 @@ class FileOps:
                              dtype="|U30")
         return data
 
-
-
     def read_sch_file(self, file_name):
-
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
@@ -85,11 +81,13 @@ class FileOps:
                         sch_dict["EPOCH"] = value.strip()
                     elif "FILTER" in keyword:
                         subsets = value.strip()
-                        sch_dict["FILTER"] = subsets.replace("'", "").strip().split(",")
-                        
+                        sch_dict["FILTER"] = subsets.replace(
+                            "'", "").strip().split(",")
+
                     elif "DURATION" in keyword:
                         duration = value.strip()
-                        sch_dict["DURATION"] = duration.replace("'", "").strip().split(",")
+                        sch_dict["DURATION"] = duration.replace(
+                            "'", "").strip().split(",")
                     elif "BINNING" in keyword:
                         sch_dict["BINNING"] = value.strip()
                     elif "SUBIMAGE" in keyword:
@@ -106,14 +104,13 @@ class FileOps:
                         sch_dict["REPEAT"] = value.strip()
                     elif "BLOCKREPEAT" in keyword:
                         sch_dict["BLOCKREPEAT"] = value.strip()
-                        
+
                 return sch_dict
         except Exception as e:
             print(e)
             return False
 
     def print_sch_file(self, schs_path, dT=60, dF=2, dS=5):
-
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
@@ -139,7 +136,8 @@ class FileOps:
             filter_and_durations = []
             durations = 0
             for i, filter in enumerate(sch_dict['FILTER']):
-                filter_and_durations.append("{0}({1})".format(filter, sch_dict['DURATION'][i]))
+                filter_and_durations.append(
+                    "{0}({1})".format(filter, sch_dict['DURATION'][i]))
                 try:
                     durations += float(sch_dict['DURATION'][i])
                 except ValueError:
@@ -148,7 +146,7 @@ class FileOps:
                     exposures.append(float(sch_dict['DURATION'][i]))
                 except ValueError:
                     exposures.append(0)
-                
+
                 filters.append(sch_dict['FILTER'][i])
 
             total_exposure_time.append(durations * float(sch_dict['REPEAT']))
@@ -169,12 +167,13 @@ class FileOps:
         print("Used filters: {0}".format(sorted(set(filters))))
         print("Used exposures: {0}".format(sorted(set(exposures))))
         print("Total exposure time: {0} s".format(sum(total_exposure_time)))
-        print("Total observation time: {0} s".format(sum(total_observation_time)))
+        print("Total observation time: {0} s".format(
+            sum(total_observation_time)))
         print("Total objects : {0}".format(len(project_proper_tbl)))
         return project_proper_tbl
 
-    def pts_to_sch(self, host, user, passwd, out_file_path="./", delimiter=","):
-
+    def pts_to_sch(self, host, user, passwd,
+                   out_file_path="./", delimiter=","):
         """
         Reads object list and creates sch_files.
         @param csv_file: Text file name and path
@@ -184,7 +183,7 @@ class FileOps:
 
         """
         
-        mydb = mysql.connector.connect(
+        mydb = mysOAql.connector.connect(
             host="localhost",
             user="yourusername",
             passwd="yourpassword"
@@ -202,8 +201,8 @@ class FileOps:
 
             pid = object[0]
 
-    def csv_to_sch_files(self, csv_file, out_file_path="./", delimiter=",", priority=[]):
-
+    def csv_to_sch_files(self, csv_file, out_file_path="./", delimiter=",",
+                         priority=[]):
         """
         Reads object list and creates sch_files.
         @param csv_file: Text file name and path
@@ -245,7 +244,8 @@ class FileOps:
                 prior = 1
             repeat = object[5]
 
-            print(pid, target_name, ra, dec, ",".join(subsets), ",".join(durations), prior, repeat)
+            print(pid, target_name, ra, dec, ",".join(
+                subsets), ",".join(durations), prior, repeat)
 
             self.create_sch_file(out_file_path=out_file_path,
                                  pid=pid,
@@ -259,7 +259,6 @@ class FileOps:
         return True
 
     def get_unique_filter_duration(self, csv_file, delimiter=","):
-
         """
         Reads object list and returns filters and durations.
         @param csv_file: Text file name and path
@@ -291,14 +290,12 @@ class FileOps:
 
         return {'filters': subsets, 'durations': sorted(durations)}
 
-
     def create_sch_file(self, out_file_path="./", pid="3141", target_name="tug", ra=None,
                         dec=None,
                         subsets="U,B,V,R,I",
                         durations="60,60,60,60,60",
                         priority=1,
                         repeat=1):
-
         """
         Reads A-Track result file into numpy array.
         @param file_name: Text file name and path
@@ -330,32 +327,32 @@ BLOCK = '1'
     /
 BLOCKREPEAT = 1
 """.format(pid,
-                       target_name,
-                       ra,
-                       dec,
-                       subsets,
-                       durations,
-                       priority,
-                       repeat)
-
+                target_name,
+                ra,
+                dec,
+                subsets,
+                durations,
+                priority,
+                repeat)
 
             with open("{0}/{1}_{2}.sch".format(out_file_path,
                                                pid, target_name), "w") as file:
                 file.write(sch_template)
                 file.close()
 
-            print(">>> {0}_{1}.sch file created in {2}".format(pid, target_name, out_file_path))
+            print(">>> {0}_{1}.sch file created in {2}".format(
+                pid, target_name, out_file_path))
 
             return True
-            
+
         except Exception as e:
             print(e)
             return False
 
     def sch_to_database(self, sch_file,
-                             sqlite_file="db.sqlite3",
-                             table_name="portal_schedule",
-                             keywords=None):
+                        sqlite_file="db.sqlite3",
+                        table_name="portal_schedule",
+                        keywords=None):
 
         print(">>> SCH2DB: {0}".format(sch_file))
 
@@ -377,7 +374,7 @@ BLOCKREPEAT = 1
 
         sch_dict = self.read_sch_file(sch_file)
 
-        filters =sch_dict['FILTER']
+        filters = sch_dict['FILTER']
 
         try:
             u_filter = sch_dict['DURATION'][filters.index("U")]
@@ -453,7 +450,6 @@ BLOCKREPEAT = 1
         return (True)
 
     def read_res(self, file_name):
-
         """
         Reads A-Track result file into numpy array.
         @param file_name: Text file name and path
@@ -473,7 +469,6 @@ BLOCKREPEAT = 1
             print(e)
 
     def get_file_list(self, dir_name):
-
         """
         List FITS images in a folder into a numpy array.
         @param dir_name: Directory of FITS images
@@ -492,7 +487,7 @@ BLOCKREPEAT = 1
                              fits_ext=".fts",
                              header2sqlite=False,
                              sqlite_file="gozlemler.sqlite"):
-        
+
         ssh = paramiko.SSHClient()
         ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
@@ -517,9 +512,11 @@ BLOCKREPEAT = 1
                     fits_ext in fileattr.filename:
                 sftp.get(fileattr.filename, fileattr.filename)
                 if header2sqlite is True:
-                    f2db = self.fitshead_to_database(fileattr.filename, sqlite_file=sqlite_file)
+                    f2db = self.fitshead_to_database(
+                        fileattr.filename, sqlite_file=sqlite_file)
                     if f2db is False:
-                        print(">>> Something wrong with the FITS file: {0}".format(fileattr.filename))
+                        print(">>> Something wrong with the FITS file: {0}".format(
+                            fileattr.filename))
                         continue
                 ret = True
                 print("{0} => {1}".format(fileattr.filename,
@@ -559,7 +556,6 @@ BLOCKREPEAT = 1
             print("No such folder!")
             ssh.close()
             raise SystemExit
-
 
         ret = False
         latest = 0
@@ -641,7 +637,7 @@ BLOCKREPEAT = 1
         except Exception as e:
             print(e)
             return False
-            
+
         keyword_values = []
         table_headers = []
         fits_name = os.path.basename(fits_file)
@@ -655,9 +651,11 @@ BLOCKREPEAT = 1
                     band = str(fo.get_header("filter")).strip()[0]
                     try:
                         if "+" in fits_name:
-                            pid = fits_name[(fits_name.index("+") + 5):(fits_name.index(band) - 3)]
+                            pid = fits_name[(fits_name.index(
+                                "+") + 5):(fits_name.index(band) - 3)]
                         elif "-" in fits_name:
-                            pid = fits_name[(fits_name.index("-") + 5):(fits_name.index(band) - 3)]
+                            pid = fits_name[(fits_name.index(
+                                "-") + 5):(fits_name.index(band) - 3)]
                         elif "ldt" in fits_name:
                             pid = "STD"
                         else:
@@ -682,7 +680,7 @@ BLOCKREPEAT = 1
 
         print(table_headers)
         print(keyword_values)
-                            
+
         c.execute("INSERT OR IGNORE INTO {tn} {cn} VALUES {vls}".format(
             tn=table_name,
             cn=tuple(table_headers),
@@ -724,7 +722,6 @@ BLOCKREPEAT = 1
         return (ret)
 
     def find_if_in_database_name(self, database, name):
-
         """
         Search detected asteroids ID by the name in the
         MPCORB.DAT database for MPC report.
