@@ -5,6 +5,7 @@ from astropy.table import Table
 from .io import FileOps
 from .astronomy import FitsOps
 from .astronomy import TimeOps
+from .astronomy import AstCalc
 import numpy as np
 import sep
 from os import system
@@ -216,6 +217,47 @@ class Query:
                 print("\nConnection Failed, Retrying..")
                 continue
             break
+
+    def known_mo_position(self, image_path=None,
+                    ra=None,
+                    dec=None,
+                    odate=None,
+                    radi=16,
+                    max_mag=21):
+
+        ac = AstCalc()
+        if image_path:
+            fo = FitsOps(image_path)
+            if not odate:
+                odate = fo.get_header('date-obs')
+            else:
+                odate = odate
+            ra_dec = ac.center_finder(image_path, wcs_ref=True)
+        elif not image_path and ra and dec and odate:
+            co = coord.SkyCoord('{0} {1}'.format(ra, dec),
+                                      unit=(u.hourangle, u.deg),
+                                      frame='icrs')
+            print('Target Coordinates:',
+                  co.to_string(style='hmsdms', sep=':'),
+                  'in {0} arcmin'.format(radi))
+            ra_dec = [co.ra, co.dec]
+
+        request0 = self.find_skybot_objects(odate,
+                                          ra_dec[0].degree,
+                                          ra_dec[1].degree,
+                                          radius=radi)
+
+        if request0[0]:
+            asteroids = request0[1]
+        elif request0[0] is False:
+            print(request0[1])
+            return False
+
+        asteroids['ra_deg'] = coord.Angle(asteroids["ra(h)"], unit=u.hour)
+        asteroids['dec_deg'] = coord.Angle(asteroids["dec(deg)"], unit=u.deg)
+
+        return asteroids
+
                 
     # This code adapted from vvv:
     # https://github.com/MichalZG/AsteroidsPhot/blob/master/starscoordinates.py
