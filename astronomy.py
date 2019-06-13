@@ -466,8 +466,13 @@ class AstCalc:
         naxis1 = fo.get_header('naxis1')
         naxis2 = fo.get_header('naxis2')
 
-        c = coordinates.SkyCoord('{0} {1}'.format(
+        if ":" in (ra or dec):
+            c = coordinates.SkyCoord('{0} {1}'.format(
                         ra, dec), unit=(u.hourangle, u.deg),
+                                 frame='icrs')
+        else:
+            c = coordinates.SkyCoord('{0} {1}'.format(
+                        ra, dec), unit=(u.deg, u.deg),
                                  frame='icrs')
 
         # target's X and Y coor

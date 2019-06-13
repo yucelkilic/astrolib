@@ -23,78 +23,6 @@ import os
 
 class StarPlot:
 
-    def object_plot(self, image_path, ra, dec, mark_color="red"):
-
-        """
-        Source plot module.
-        @param image_data: data part of the FITS image
-        @type image_data: numpy array
-        @param ra: RA coordinate of object, skycoords.
-        @type ra: string
-        @param dec: DEC coordinate of object, skycoords.
-        @type dec: string
-        @param mark_color: Color of the plot marks
-        @type mark_color: str
-        @returns: boolean
-        """
-
-        if image_path:
-            hdu = fits.open(image_path)[0]
-        else:
-            print("No image provided!")
-            raise SystemExit
-
-        rcParams['figure.figsize'] = [15., 12.]
-
-        wcs = WCS(hdu.header)
-        ax = plt.subplot(projection=wcs)
-
-        data = hdu.data.astype(float)
-
-        bkg = sep.Background(data)
-        # bkg_image = bkg.back()
-        # bkg_rms = bkg.rms()
-        data_sub = data - bkg
-
-        m, s = np.mean(data_sub), np.std(data_sub)
-        ax.imshow(data_sub, interpolation='nearest',
-                  cmap='gray', vmin=(m-s), vmax=(m+s), origin='lower')
-
-        # plot an ellipse for each object
-        co = coordinates.SkyCoord('{0} {1}'.format(ra, dec),
-                                  unit=(u.hourangle, u.deg),
-                                  frame='icrs')
-        print('Target Coordinates:',
-              co.to_string(style='hmsdms', sep=':'))
-
-        p = Circle((co.ra.degree, co.dec.degree), 0.005,
-                   edgecolor=mark_color,
-                   facecolor='none',
-                   transform=ax.get_transform('icrs'))
-        ax.text(co.ra.degree,
-                co.dec.degree - 0.007,
-                "object",
-                size=12,
-                color='black',
-                ha='center',
-                va='center',
-                transform=ax.get_transform('icrs'))
-
-
-
-        ax.coords.grid(True, color='white', ls='solid')
-        ax.coords[0].set_axislabel('Galactic Longitude')
-        ax.coords[1].set_axislabel('Galactic Latitude')
-
-        overlay = ax.get_coords_overlay('icrs')
-        overlay.grid(color='white', ls='dotted')
-        overlay[0].set_axislabel('Right Ascension (ICRS)')
-        overlay[1].set_axislabel('Declination (ICRS)')
-
-        ax.add_patch(p)
-        plt.gca().invert_yaxis()
-        plt.show()
-        return True
 
     def star_plot(self, image_data, objects, mark_color="red"):
 
@@ -618,3 +546,109 @@ class StarPlot:
         lc_ast_diff.savefig("{0}/{1}_jd_vs_diff_mag_lc.pdf".format(os.getcwd(), fn))
 
         # plt.show()
+
+
+    def catalog_plot(self, fitsfile, catalog):
+
+        try:
+            import f2n
+        except ImportError:
+            print('Python cannot import f2n. Make sure f2n is installed.')
+            raise SystemExit
+
+        image = f2n.fromfits(fitsfile, verbose=False)
+        image.setzscale('auto', 'auto')
+        image.makepilimage('log', negative=False)
+
+        print('\033[1;34mPlotting sources on {0}...\033[0m'.format(catalog))
+
+        extension = os.path.splitext(os.path.basename(catalog))[1]
+
+        if extension == '.cat':
+            coordinates = np.genfromtxt(catalog, delimiter=None,
+                                        comments='#')[:, [1, 2]]
+        elif extension == '.txt':
+            coordinates = np.genfromtxt(catalog, delimiter=None,
+                                        comments='#')[:, [0, 1]]
+        elif extension == '.cnd':
+            coordinates = np.genfromtxt(catalog, delimiter=',', comments='#',
+                                        skip_header=1)[:, [1, 2]]
+
+        for i, coordinate in enumerate(coordinates):
+            x, y = coordinate[0], coordinate[1]
+            label = '{0}'.format(i + 1)
+            image.drawcircle(x,
+                             y,
+                             r=10,
+                             colour=(0, 255, 0),
+                             label=label)
+
+        image.writetitle(os.path.basename(fitsfile))
+        fitshead, fitsextension = os.path.splitext(fitsfile)
+        image.tonet('{0}.png'.format(fitshead))
+
+        print('\033[1;34mAll sources plotted on: {0}.png\033[0m'.format(fitshead))
+
+        return True
+
+    def object_plot(self, image_path, ra, dec, mark_color="red"):
+
+        """
+        Source plot module.
+        @param image_data: data part of the FITS image
+        @type image_data: numpy array
+        @param ra: RA coordinate of object, skycoords.
+        @type ra: string
+        @param dec: DEC coordinate of object, skycoords.
+        @type dec: string
+        @param mark_color: Color of the plot marks
+        @type mark_color: str
+        @returns: boolean
+        """
+        try:
+            import f2n
+        except ImportError:
+            print('Python cannot import f2n. Make sure f2n is installed.')
+            raise SystemExit
+
+        if image_path:
+            hdu = fits.open(image_path)[0]
+        else:
+            print("No image provided!")
+            raise SystemExit
+
+        wcs = WCS(hdu.header)
+
+        # plot an ellipse for each object
+        if ":" not in (ra or dec):
+            co = coordinates.SkyCoord('{0} {1}'.format(ra, dec),
+                                      unit=(u.deg, u.deg),
+                                      frame='icrs')
+        else:
+            co = coordinates.SkyCoord('{0} {1}'.format(ra, dec),
+                                  unit=(u.hourangle, u.deg),
+                                  frame='icrs')
+
+        print('Target Coordinates:',
+              co.to_string(style='hmsdms', sep=':'))
+
+        image = f2n.fromfits(image_path, verbose=False)
+        image.setzscale('auto', 'auto')
+        image.makepilimage('log', negative=False)
+
+        ac = AstCalc()
+        x, y = ac.sky2xy(image_path, ra, dec)
+        label = '{0}'.format(co.to_string(style='hmsdms', sep=':'))
+        image.drawcircle(x,
+                         y,
+                         r=10,
+                         colour=(0, 255, 0),
+                         label=label)
+
+        image.writetitle(os.path.basename(image_path))
+        fitshead, fitsextension = os.path.splitext(image_path)
+        image.tonet('{0}.png'.format(fitshead))
+
+        print('\033[1;34mSource plotted on: {0}.png\033[0m'.format(fitshead))
+
+        return True
