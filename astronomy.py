@@ -318,7 +318,7 @@ class AstCalc:
             w = WCS(header)
             astcoords_deg = w.wcs_pix2world([[x, y]], 0)
             c = coordinates.SkyCoord(astcoords_deg * u.deg,
-                                             frame='icrs')
+                                             frame='fk5')
 
             alpha = c.to_string(style='hmsdms', sep=sep, precision=2)[0]
             delta = c.to_string(style='hmsdms', sep=sep, precision=1)[0]
@@ -347,7 +347,7 @@ class AstCalc:
             astcoords_deg = w.wcs_pix2world([[x, y]], 1)
 
             astcoords = coordinates.SkyCoord(
-                astcoords_deg * u.deg, frame='icrs')
+                astcoords_deg * u.deg, frame='fk5')
 
             return(astcoords[0])
 
@@ -432,7 +432,7 @@ class AstCalc:
             system("rm -rf {0}/coors".format(file_path))
 
             c = coordinates.SkyCoord('{0} {1}'.format(coors[0], coors[1]),
-                                     unit=(u.hourangle, u.deg), frame='icrs')
+                                     unit=(u.hourangle, u.deg), frame='fk5')
 
             return(c)
         except Exception as e:
@@ -525,7 +525,8 @@ class AstCalc:
                     ra=None,
                     dec=None,
                     ra_keyword="objctra",
-                    dec_keyword="objctdec"):
+                    dec_keyword="objctdec",
+                    overwrite=False):
 
         """
         The astrometry engine will take any image and return
@@ -592,8 +593,14 @@ class AstCalc:
                 print(image_path + ' cannot be solved!')
                 return(False)
             else:
-                system("mv {0}.new {0}_new.fits".format(root))
-                print("{0}.fits --> {0}_new.fits: solved!".format(root))
+                if overwrite is False:
+                    system("mv {0}.new {0}_new.fits".format(root))
+                    print("{0}.fits --> {0}_new.fits: solved!".format(root))
+                elif overwrite is True:
+                    print("Overwrite is True!")
+                    system("mv {0}.new {0}.fits".format(root))
+                    print("{0}.new --> {0}.fits: solved!".format(root))
+
                 return(True)
         
         except Exception as e:

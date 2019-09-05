@@ -5,7 +5,6 @@ import numpy as np
 import paramiko
 import os
 import sqlite3
-import mysql.connector
 from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
@@ -465,6 +464,51 @@ BLOCKREPEAT = 1
                                  delimiter=None,
                                  usecols=(0, 1, 3, 4, 5))
             return (data[~np.isnan(data).any(axis=1)])
+        except Exception as e:
+            print(e)
+
+    def read_sextractor_file(self, file_name):
+        """
+        Reads A-Track result file into numpy array.
+        @param file_name: Text file name and path
+        @type file_name: str
+        @return: array
+        """
+
+        try:
+            with open(file_name) as fp:
+                columns = []
+                units = []
+                for cnt, line in enumerate(fp):
+                    if "#" in line:
+                        line = line.replace("\n", "")
+                        line = line.split()
+                        columns.append(line[2])
+                        if "[" in line[-1]:
+                            unit = line[-1].replace("[", "")
+                            unit = unit.replace("]", "")
+                            units.append(unit)
+                        else:
+                            units.append("")
+                        # print("Line {}: {}".format(cnt, line.split()))
+                    else:
+                        break
+
+            data = np.genfromtxt(file_name,
+                                 comments='#',
+                                 invalid_raise=False,
+                                 delimiter=None)
+
+            np_result = (data[~np.isnan(data).any(axis=1)])
+
+            tbl_result = Table(np_result,
+                               names=tuple(columns))
+
+            for k, column in enumerate(columns):
+                tbl_result[column].unit = units[k]
+
+            return tbl_result
+
         except Exception as e:
             print(e)
 

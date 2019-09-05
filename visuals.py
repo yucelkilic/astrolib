@@ -23,7 +23,6 @@ import os
 
 class StarPlot:
 
-
     def star_plot(self, image_data, objects, mark_color="red"):
 
         """
@@ -650,5 +649,41 @@ class StarPlot:
         image.tonet('{0}.png'.format(fitshead))
 
         print('\033[1;34mSource plotted on: {0}.png\033[0m'.format(fitshead))
+
+        return True
+
+    def fits2png(self, image_path):
+
+        """
+        Source plot module.
+        @param image_data: data part of the FITS image
+        @type image_data: numpy array
+        @param ra: RA coordinate of object, skycoords.
+        @type ra: string
+        @param dec: DEC coordinate of object, skycoords.
+        @type dec: string
+        @param mark_color: Color of the plot marks
+        @type mark_color: str
+        @returns: boolean
+        """
+        try:
+            import f2n
+        except ImportError:
+            print('Python cannot import f2n. Make sure f2n is installed.')
+            raise SystemExit
+
+        if image_path:
+            hdu = fits.open(image_path)[0]
+        else:
+            print("No image provided!")
+            raise SystemExit
+
+        image = f2n.fromfits(image_path, verbose=False)
+        image.setzscale('auto', 'auto')
+        image.makepilimage('log', negative=False)
+
+        image.writetitle(os.path.basename(image_path))
+        fitshead, fitsextension = os.path.splitext(image_path)
+        image.tonet('{0}.png'.format(fitshead))
 
         return True
