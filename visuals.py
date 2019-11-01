@@ -73,7 +73,8 @@ class StarPlot:
                        radi=6,
                        max_mag=20.0,
                        circle_color='yellow',
-                       arrow_color='red'):
+                       arrow_color='red',
+                       invert_yaxis="True"):
 
         """
         Source plot module.
@@ -95,13 +96,15 @@ class StarPlot:
         @type circle_color: str
         @param arrow_color: Color of the asteroids direction marks
         @type arrow_color: str
+        @param invert_yaxis: invert y axis or not.
+        @type invert_yaxis: bool
         @returns: boolean
         """
 
         from .catalog import Query
 
         # filename = get_pkg_data_filename(image_path)
-        rcParams['figure.figsize'] = [15., 12.]
+        rcParams['figure.figsize'] = [10., 8.]
         # rcParams.update({'font.size': 10})
 
         if image_path:
@@ -221,7 +224,8 @@ class StarPlot:
                 ax.add_patch(p)
                 ax.add_patch(r)
         # plt.gca().invert_xaxis()
-        plt.gca().invert_yaxis()
+        if invert_yaxis == "True":
+            plt.gca().invert_yaxis()
         plt.show()
         print(asteroids)
         return True
