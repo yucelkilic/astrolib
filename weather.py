@@ -11,6 +11,8 @@ from astropy.time import Time
 from astropy.time import TimeDelta
 import astropy.units as u
 from astroplan import Observer
+import sqlite3
+from sqlite3 import Error
 
 
 class Weather:
@@ -19,13 +21,15 @@ class Weather:
         for n in range(int((end_date - start_date).days)):
             yield start_date + timedelta(n)
 
-    def read_davis_data_from_archive(self, date_obs, station="T60"):
+    def read_davis_data_from_archive(self, date_obs, station="T60", db_file=None):
         """
         It reads wxview result data from meteo station.
         @param date_obs
         @type date_obs: date
         @param station: Station name: T60|T100|RTT150.
         @type station: string
+        @param station: wview sqlite db file.
+        @type station: file
         @return: astropy.table
         """
 
@@ -46,64 +50,70 @@ class Weather:
 
         # print("Retriving data from: {0}".format(urlink))
         try:
-            raw_data = urllib.request.urlopen(urlink)
-            dataset = np.genfromtxt(raw_data,
-                                    delimiter=None,
-                                    comments="---",
-                                    skip_header=1,
-                                    dtype="|U30")
+            if db_file is None:
+                raw_data = urllib.request.urlopen(urlink)
+                dataset = np.genfromtxt(raw_data,
+                                        delimiter=None,
+                                        comments="---",
+                                        skip_header=1,
+                                        dtype="|U30")
         except:
             return False
 
-        # date and time merging
-        date_dataset = dataset.astype(object)
-        date_dataset[:, 0] += "T" + date_dataset[:, 1]
+        if db_file is None:
+            # date and time merging
+            date_dataset = dataset.astype(object)
+            date_dataset[:, 0] += "T" + date_dataset[:, 1]
 
-        """
-        convert first column time format because davis data
-        not formatted properly
-        """
+            """
+            convert first column time format because davis data
+            not formatted properly
+            """
 
-        ts = [time.strftime('%Y-%m-%dT%H:%M',
-                            time.strptime(s[0].replace("T24:00", "T23:59"),
-                                          '%Y%m%dT%H:%M')) for s in
-              date_dataset[:, :1]]
+            ts = [time.strftime('%Y-%m-%dT%H:%M',
+                                time.strptime(s[0].replace("T24:00", "T23:59"),
+                                              '%Y%m%dT%H:%M')) for s in
+                  date_dataset[:, :1]]
 
-        # convert np arrar for merging rest of data
-        formatted_date_column = np.asarray(ts).reshape(len(ts), 1)
+            # convert np arrar for merging rest of data
+            formatted_date_column = np.asarray(ts).reshape(len(ts), 1)
 
-        np_davis_data = np.hstack((formatted_date_column,
-                                   dataset[:, 2:]))
+            np_davis_data = np.hstack((formatted_date_column,
+                                       dataset[:, 2:]))
 
-        tbl_davis_data = Table(np_davis_data,
-                               names=('Timestamp',
-                                      'Temp',
-                                      'Chill',
-                                      'HIindex',
-                                      'Humid',
-                                      'Dewpt',
-                                      'Wind',
-                                      'HiWind',
-                                      'WindDir',
-                                      'Rain',
-                                      'Barom',
-                                      'Solar',
-                                      'ET',
-                                      'UV'),
-                               dtype=('datetime64',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8',
-                                      'f8'))
+            tbl_davis_data = Table(np_davis_data,
+                                   names=('Timestamp',
+                                          'Temp',
+                                          'Chill',
+                                          'HIindex',
+                                          'Humid',
+                                          'Dewpt',
+                                          'Wind',
+                                          'HiWind',
+                                          'WindDir',
+                                          'Rain',
+                                          'Barom',
+                                          'Solar',
+                                          'ET',
+                                          'UV'),
+                                   dtype=('datetime64',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8',
+                                          'f8'))
+        else:
+            conn = sqlite3.connect(sqlite_file)
+            c = conn.cursor()
+
 
         return(tbl_davis_data)
 
