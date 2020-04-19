@@ -10,13 +10,15 @@ from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
 from astropy.table import Table
+import datetime as dt
+from matplotlib.dates import strpdate2num, num2date
 
 
 class FileOps:
 
     def make_date(self, datestr, datefrmt='%Y-%m-%d'):
 
-        return(datetime.strptime(datestr.decode('ascii'), datefrmt))
+        return datetime.strptime(datestr.decode('ascii'), datefrmt)
 
     def read_file_as_array(self, file_name):
         """
@@ -919,7 +921,7 @@ BLOCKREPEAT = 1
                                              'SDRa',
                                              'SDDecl'])
 
-        srg_ephem_pd['Date-Time'] = pd.to_datetime(srg_ephem_pd['Date'] + ' ' + srg_ephem_pd['Time'])
+        srg_ephem_pd['Date-Time'] = pd.to_datetime(srg_ephem_pd['Date'] + ' ' + srg_ephem_pd['Time'], format='%y-%m-%d %H:%M')
         srg_ephem_pd['RA2000'] = srg_ephem_pd['RA2000_HH'] + ':' + srg_ephem_pd['RA2000_MM'] + ':' + \
                                  srg_ephem_pd['RA2000_SS']
         srg_ephem_pd['DECL2000'] = srg_ephem_pd['DECL2000_DD'] + ':' + srg_ephem_pd['DECL2000_MM'] + ':' + \
