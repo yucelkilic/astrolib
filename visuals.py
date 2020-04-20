@@ -691,3 +691,166 @@ class StarPlot:
         image.tonet('{0}.png'.format(fitshead))
 
         return True
+
+    def rota(self,
+             object_name=None,
+             ephemeris_file=None,
+             odate=None,
+             time_travel=1,
+             min_mag=15.0,
+             max_mag=20.0,
+             circle_color='yellow',
+             arrow_color='red',
+             invert_yaxis="True"):
+        """
+        Moving object trajectory plotter.
+            Parameters
+            ----------
+            ephemeris_file: file object
+                Ephemeris file.
+            object_name : str
+                Asteroid or moving object name.
+            odate : str
+                Ephemeris date of observation in date.
+            min_mag : list or float
+                Faintest magnitude to be plotted.
+                Default is '20.0'.
+            max_mag : float
+                Brightest magnitude to be plotted.
+                Default is '15.0'.
+            circle_color : str
+                Moving object mark color
+            arrow_color : Trajectory color
+            Returns
+            -------
+            'A table object or file'
+        """
+
+        from .catalog import Query
+
+        # filename = get_pkg_data_filename(image_path)
+        rcParams['figure.figsize'] = [10., 8.]
+        # rcParams.update({'font.size': 10})
+
+        if image_path:
+            hdu = fits.open(image_path)[0]
+        elif not image_path and ra and dec and odate:
+            co = coordinates.SkyCoord('{0} {1}'.format(ra, dec),
+                                      unit=(u.hourangle, u.deg),
+                                      frame='icrs')
+            print('Target Coordinates:',
+                  co.to_string(style='hmsdms', sep=':'),
+                  'in {0} arcmin'.format(radi))
+            try:
+                server_img = SkyView.get_images(position=co,
+                                                survey=['DSS'],
+                                                radius=radi * u.arcmin)
+                hdu = server_img[0][0]
+            except Exception as e:
+                print("SkyView could not get the image from DSS server.")
+                print(e)
+                raise SystemExit
+
+        wcs = WCS(hdu.header)
+
+        data = hdu.data.astype(float)
+
+        bkg = sep.Background(data)
+        # bkg_image = bkg.back()
+        # bkg_rms = bkg.rms()
+        data_sub = data - bkg
+        m, s = np.mean(data_sub), np.std(data_sub)
+
+        ax = plt.subplot(projection=wcs)
+
+        plt.imshow(data_sub, interpolation='nearest',
+                   cmap='gray', vmin=m - s, vmax=m + s, origin='lower')
+        ax.coords.grid(True, color='white', ls='solid')
+        ax.coords[0].set_axislabel('Galactic Longitude')
+        ax.coords[1].set_axislabel('Galactic Latitude')
+
+        overlay = ax.get_coords_overlay('icrs')
+        overlay.grid(color='white', ls='dotted')
+        overlay[0].set_axislabel('Right Ascension (ICRS)')
+        overlay[1].set_axislabel('Declination (ICRS)')
+
+        sb = Query()
+        ac = AstCalc()
+        if image_path:
+            fo = FitsOps(image_path)
+            if not odate:
+                odate = fo.get_header('date-obs')
+            else:
+                odate = odate
+            ra_dec = ac.center_finder(image_path, wcs_ref=True)
+        elif not image_path and ra and dec and odate:
+            odate = odate
+            ra_dec = [co.ra, co.dec]
+
+        request0 = sb.find_skybot_objects(odate,
+                                          ra_dec[0].degree,
+                                          ra_dec[1].degree,
+                                          radius=radi)
+
+        if request0[0]:
+            asteroids = request0[1]
+        elif request0[0] is False:
+            print(request0[1])
+            raise SystemExit
+
+        request1 = sb.find_skybot_objects(odate,
+                                          ra_dec[0].degree,
+                                          ra_dec[1].degree,
+                                          radius=float(radi),
+                                          time_travel=time_travel)
+
+        if request1[0]:
+            asteroids_after = request1[1]
+        elif request1[0] is False:
+            print(request1[1])
+            raise SystemExit
+
+        for i in range(len(asteroids)):
+            if float(asteroids['m_v'][i]) <= max_mag:
+                c = coordinates.SkyCoord('{0} {1}'.format(
+                    asteroids['ra(h)'][i],
+                    asteroids['dec(deg)'][i]),
+                    unit=(u.hourangle, u.deg),
+                    frame='icrs')
+
+                c_after = coordinates.SkyCoord('{0} {1}'.format(
+                    asteroids_after['ra(h)'][i],
+                    asteroids_after['dec(deg)'][i]),
+                    unit=(u.hourangle, u.deg),
+                    frame='icrs')
+
+                r = FancyArrowPatch(
+                    (c.ra.degree, c.dec.degree),
+                    (c_after.ra.degree, c_after.dec.degree),
+                    arrowstyle='->',
+                    mutation_scale=10,
+                    transform=ax.get_transform('icrs'))
+
+                p = Circle((c.ra.degree, c.dec.degree), 0.005,
+                           edgecolor=circle_color,
+                           facecolor='none',
+                           transform=ax.get_transform('icrs'))
+                ax.text(c.ra.degree,
+                        c.dec.degree - 0.007,
+                        asteroids['name'][i],
+                        size=12,
+                        color='black',
+                        ha='center',
+                        va='center',
+                        transform=ax.get_transform('icrs'))
+
+                r.set_facecolor('none')
+                r.set_edgecolor(arrow_color)
+                ax.add_patch(p)
+                ax.add_patch(r)
+        # plt.gca().invert_xaxis()
+        if invert_yaxis == "True":
+            plt.gca().invert_yaxis()
+        plt.show()
+        print(asteroids)
+        return True

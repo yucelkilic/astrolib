@@ -22,6 +22,7 @@ from os import path, system, getcwd
 import numpy as np
 
 import sep
+import sewpy
 import os
 import time
 import glob
@@ -137,7 +138,6 @@ NET {6}""".format(code, observer, observer, tel,
 
     def detect_sources(self, plot=False, skycoords=False, max_sources=50,
                        exp_keyword="exptime"):
-
         """
         It detects sources on FITS image with sep module.
         @param plot
@@ -194,6 +194,32 @@ NET {6}""".format(code, observer, observer, tel,
         else:
             print("{0} objects detected.".format(len(objects)))
             return(Table(objects))
+
+    def source_extract(self, radius=10):
+
+        """
+        It detects sources on FITS image with sep module.
+        @return: astropy.table
+        """
+        data = self.hdu[0].data.astype(float)
+        bkg = sep.Background(data)
+        data_sub = data - bkg
+
+        sew = sewpy.SEW(params=['FLAGS', 'X_IMAGE', 'Y_IMAGE', 'ALPHA_J2000', 'DELTA_J2000', 'FLUX_AUTO', 'FLUXERR_AUTO',
+                          'BACKGROUND', 'MAG_AUTO', 'MAGERR_AUTO', 'FWHM_IMAGE', 'ELONGATION'],
+                        config={'DETECT_THRESH': 3,
+                                'ANALYSIS_THRESH': 3,
+                                'DETECT_MINAREA': 1,
+                                'DEBLEND_NTHRESH': 16,
+                                'DEBLEND_MINCONT': 0.00001,
+                                'PHOT_AUTOPARAMS': '"2.5, 3.5"',
+                                'BACK_SIZE': 64,
+                                'BACK_FILTERSIZE': 3,
+                                'FILTER': 'Y',
+                                'VERBOSE_TYPE': 'QUIET'})
+        out = sew(self.file_name)
+        return out["table"]
+
 
     def fits_stat(self):
 

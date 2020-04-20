@@ -2,6 +2,7 @@
 
 import glob
 import numpy as np
+import pandas as pd
 import paramiko
 import os
 import sqlite3
@@ -9,13 +10,15 @@ from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
 from astropy.table import Table
+import datetime as dt
+from matplotlib.dates import strpdate2num, num2date
 
 
 class FileOps:
 
     def make_date(self, datestr, datefrmt='%Y-%m-%d'):
 
-        return(datetime.strptime(datestr.decode('ascii'), datefrmt))
+        return datetime.strptime(datestr.decode('ascii'), datefrmt)
 
     def read_file_as_array(self, file_name):
         """
@@ -801,3 +804,142 @@ BLOCKREPEAT = 1
             print(e)
 
         return (ret)
+
+
+    def create_connection(self, db_file):
+        """ create a database connection to the SQLite database
+            specified by the db_file
+        :param db_file: database file
+        :return: Connection object or None
+        """
+        try:
+            conn = sqlite3.connect(db_file, isolation_level=None)
+            return conn
+        except Error as e:
+            print(e)
+
+        return None
+
+    def select_items_by_date(conn, database_table, start_jd, end_jd):
+        """
+        Query tasks by priority
+        :param conn: the Connection object
+        :param priority:
+        :return:
+        """
+
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM {tbl} WHERE jd>={start_jd} AND jd<={end_jd} ORDER BY jd".format(tbl=database_table,
+                                                                                                   start_jd=start_jd,
+                                                                                                   end_jd=end_jd))
+
+        rows = cur.fetchall()
+
+        return Table(np.array(rows), names=('dateTime',
+                                           'xfactor',
+                                           'yfactor',
+                                           'exptime',
+                                           'pid',
+                                           'object_name',
+                                           'priority',
+                                           'instrume',
+                                           'jd',
+                                           'date-obs',
+                                           'time-obs',
+                                           'lst',
+                                           'latitude',
+                                           'elevatio',
+                                           'azimuth',
+                                           'ha',
+                                           'ra',
+                                           'dec',
+                                           'objra',
+                                           'objdec',
+                                           'epoch',
+                                           'equinox',
+                                           'filter',
+                                           'camtemp',
+                                           'focuspos',
+                                           'wxtemp',
+                                           'wxpres',
+                                           'wxwndspd',
+                                           'wxwnddir',
+                                           'wxhumid',
+                                           'biascor',
+                                           'thermcor',
+                                            'flatcor',
+                                            'badpxcor',
+                                            'fwhmh',
+                                            'fwhmhs',
+                                            'fwhmv',
+                                            'fwhmvs'))
+
+    def srg_ephemeris_reader(self, ephemeris_file):
+        """
+        Reads SRG satellite  ephemeris file.
+            Parameters
+            ----------
+            ephemeris_file: file object
+                Ephemeris file.
+            Returns
+            -------
+            'A pandas object'
+            Example:
+            -------
+            >>> from astrolib import visuals
+            >>> from astrolib import io
+            >>> fo = io.FileOps()
+            >>> fo.srg_ephemeris_reader("ephemeris_file.txt")
+        """
+
+        srg_ephem = np.genfromtxt(ephemeris_file,
+                                  comments='=',
+                                  delimiter=None,
+                                  dtype="U",
+                                  skip_header=5)
+
+        srg_ephem_pd = pd.DataFrame(srg_ephem,
+                                    columns=['Date',
+                                             'Time',
+                                             'Az',
+                                             'Um',
+                                             'RA2000_HH',
+                                             'RA2000_MM',
+                                             'RA2000_SS',
+                                             'DECL2000_DD',
+                                             'DECL2000_MM',
+                                             'DECL2000_SS',
+                                             'RARate',
+                                             'DECLRate',
+                                             'HourAng_HH',
+                                             'HourAng_MM',
+                                             'HourAng_SS',
+                                             'Phase',
+                                             'Illum',
+                                             'SunAng',
+                                             'Mag',
+                                             'SDRa',
+                                             'SDDecl'])
+
+        srg_ephem_pd['Date-Time'] = pd.to_datetime(srg_ephem_pd['Date'] + ' ' + srg_ephem_pd['Time'], format='%y-%m-%d %H:%M')
+        srg_ephem_pd['RA2000'] = srg_ephem_pd['RA2000_HH'] + ':' + srg_ephem_pd['RA2000_MM'] + ':' + \
+                                 srg_ephem_pd['RA2000_SS']
+        srg_ephem_pd['DECL2000'] = srg_ephem_pd['DECL2000_DD'] + ':' + srg_ephem_pd['DECL2000_MM'] + ':' + \
+                                 srg_ephem_pd['DECL2000_SS']
+        srg_ephem_pd['HourAng'] = srg_ephem_pd['HourAng_HH'] + ':' + srg_ephem_pd['HourAng_MM'] + ':' + \
+                                 srg_ephem_pd['HourAng_SS']
+
+        return(srg_ephem_pd[['Date-Time',
+                             'Az',
+                             'Um',
+                             'RA2000',
+                             'DECL2000',
+                             'RARate',
+                             'DECLRate',
+                             'HourAng',
+                             'Phase',
+                             'Illum',
+                             'SunAng',
+                             'Mag',
+                             'SDRa',
+                             'SDDecl']])
