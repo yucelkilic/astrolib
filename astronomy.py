@@ -31,7 +31,7 @@ import warnings
 
 class FitsOps:
 
-    def __init__(self, file_name, checksum=True):
+    def __init__(self, file_name, checksum=False):
         warnings.simplefilter('ignore', category=AstropyWarning)
         self.file_name = file_name
         self.timeops = TimeOps()

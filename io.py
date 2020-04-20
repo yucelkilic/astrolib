@@ -717,7 +717,7 @@ BLOCKREPEAT = 1
                 keyword_values.append(object_name)
             else:
                 keyword_value = fo.get_header(keyword)
-                if keyword_value is None:
+                if (keyword_value is None) or (keyword_value is False):
                     keyword_value = -9999
                 table_headers.append(keyword)
                 keyword_values.append(keyword_value)
