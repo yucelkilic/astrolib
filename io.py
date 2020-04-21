@@ -673,7 +673,12 @@ BLOCKREPEAT = 1
                         'fwhmh',
                         'fwhmhs',
                         'fwhmv',
-                        'fwhmvs']
+                        'fwhmvs',
+                        'gain',
+                        'rdnoise',
+                        'readtime',
+                        'mjd',
+                        'hjd']
 
         # Connecting to the database file
         conn = sqlite3.connect(sqlite_file)
@@ -722,9 +727,46 @@ BLOCKREPEAT = 1
                 keyword_value = fo.get_header(keyword)
                 if (keyword_value is None) or (keyword_value is False):
                     keyword_value = -9999
+                    
                 table_headers.append(keyword)
                 keyword_values.append(keyword_value)
 
+        gain_index = table_headers.index('gain')
+        hjd_index = table_headers.index('hjd')
+        mjd_index = table_headers.index('mjd')
+        rdnoise_index = table_headers.index('rdnoise')
+        readtime_index = table_headers.index('readtime')
+
+        gain = keyword_values[gain_index]
+        hjd = keyword_values[hjd_index]
+        mjd = keyword_values[mjd_index]
+        rdnoise = keyword_values[rdnoise_index]
+        readtime = keyword_values[readtime_index]
+
+        table_headers.remove('gain')
+        table_headers.remove('hjd')
+        table_headers.remove('mjd')
+        table_headers.remove('rdnoise')
+        table_headers.remove('readtime')
+
+        table_headers.append('gain')
+        table_headers.append('rdnoise')
+        table_headers.append('readtime')
+        table_headers.append('mjd')
+        table_headers.append('hjd')
+
+        keyword_values.remove(gain)
+        keyword_values.remove(hjd)
+        keyword_values.remove(mjd)
+        keyword_values.remove(rdnoise)
+        keyword_values.remove(readtime)
+
+        keyword_values.append(gain)
+        keyword_values.append(rdnoise)
+        keyword_values.append(readtime)
+        keyword_values.append(mjd)
+        keyword_values.append(hjd)
+        
         print(table_headers)
         print(keyword_values)
 
