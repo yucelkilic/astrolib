@@ -32,17 +32,17 @@ import warnings
 
 class FitsOps:
 
-    def __init__(self, file_name, checksum=True):
+    def __init__(self, file_name, checksum=False, ignore_missing_end=True):
         warnings.simplefilter('ignore', category=AstropyWarning)
         self.file_name = file_name
         self.timeops = TimeOps()
 
         if checksum is True:
-            with fits.open(self.file_name, mode='update') as self.hdu:
+            with fits.open(self.file_name, mode='update', ignore_missing_end=ignore_missing_end) as self.hdu:
                 self.hdu[0].add_checksum()
-            self.hdu = fits.open(self.file_name)
+            self.hdu = fits.open(self.file_name, ignore_missing_end=ignore_missing_end)
         else:
-            self.hdu = fits.open(self.file_name)
+            self.hdu = fits.open(self.file_name, ignore_missing_end=ignore_missing_end)
 
     def return_out_file_header(self, observer="YK", tel="TUG 100", code="A84",
                                contact="yucelkilic@myrafproject.org",
