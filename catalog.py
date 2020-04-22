@@ -132,7 +132,7 @@ class Query:
 
         >>> phot_object = Table([ra_list_in_deg, dec_list_in_deg], names=("ALPHA_J2000", "DELTA_J2000"))
 
-        >>> co.match_catalog("/Users/ykilic/Downloads/2059_0086_V_affineremap.fits",  catalogue="II/336/apass9",
+        >>> co.match_catalog("file.fits",  catalogue="II/336/apass9",
             filter="Vmag",
             phot_object=phot_object,
             plot=True)
