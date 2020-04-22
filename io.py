@@ -929,7 +929,9 @@ BLOCKREPEAT = 1
         srg_ephem_pd['HourAng'] = srg_ephem_pd['HourAng_HH'] + ':' + srg_ephem_pd['HourAng_MM'] + ':' + \
                                  srg_ephem_pd['HourAng_SS']
 
-        return(srg_ephem_pd[['Date-Time',
+        srg_astro_table = Table.from_pandas(srg_ephem_pd)
+
+        return(srg_astro_table[['Date-Time',
                              'Az',
                              'Um',
                              'RA2000',

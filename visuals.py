@@ -7,6 +7,7 @@ import matplotlib.gridspec as gridspec
 
 from .astronomy import AstCalc
 from .astronomy import FitsOps
+from .io import FileOps
 from astropy.io import fits
 from astropy.table import Table
 from astropy import table
@@ -15,6 +16,9 @@ from astropy import units as u
 from astropy.wcs import WCS
 from astropy.stats import sigma_clip, mad_std
 from astroquery.skyview import SkyView
+from astroquery.xmatch import XMatch
+
+import aplpy
 
 import numpy as np
 import sep
@@ -693,12 +697,15 @@ class StarPlot:
         return True
 
     def rota(self,
+             image_path=None,
              object_name=None,
              ephemeris_file=None,
              odate=None,
+             radius=None,
+             srg_radius=10,
              time_travel=1,
-             min_mag=15.0,
-             max_mag=20.0,
+             min_mag=0,
+             max_mag=17.0,
              circle_color='yellow',
              arrow_color='red',
              invert_yaxis="True"):
@@ -729,128 +736,81 @@ class StarPlot:
         from .catalog import Query
 
         # filename = get_pkg_data_filename(image_path)
-        rcParams['figure.figsize'] = [10., 8.]
+        rcParams['figure.figsize'] = [12., 12.]
         # rcParams.update({'font.size': 10})
 
-        if image_path:
+        fo = FileOps()
+        srg = fo.srg_ephemeris_reader("/Users/ykilic/Downloads/RTT-150_20200109-1708_20200110-0423.txt")
+
+        data_len = len(srg)
+        mid = int(len(srg) / 2)
+        data_mid_date = srg['Date-Time'][mid]
+        ra = srg['RA2000'][mid]
+        dec = srg['DECL2000'][mid]
+        odate = data_mid_date
+
+        if radius is None:
+            ra_first = srg['RA2000'][0]
+            dec_first = srg['DECL2000'][0]
+            ra_last = srg['RA2000'][data_len-1]
+            dec_last = srg['DECL2000'][data_len-1]
+            c_first = coordinates.SkyCoord(ra_first, dec_first, unit=(u.hourangle, u.deg), frame='icrs')
+            c_last = coordinates.SkyCoord(ra_last, dec_last, unit=(u.hourangle, u.deg), frame='icrs')
+            radius = c_first.separation(c_last)
+            radius = radius.arcmin
+
+        if image_path is not None:
             hdu = fits.open(image_path)[0]
-        elif not image_path and ra and dec and odate:
+        elif (image_path is None) and ra and dec and odate:
             co = coordinates.SkyCoord('{0} {1}'.format(ra, dec),
                                       unit=(u.hourangle, u.deg),
                                       frame='icrs')
             print('Target Coordinates:',
                   co.to_string(style='hmsdms', sep=':'),
-                  'in {0} arcmin'.format(radi))
+                  'in {0} arcmin'.format(radius))
             try:
+                print (co)
                 server_img = SkyView.get_images(position=co,
                                                 survey=['DSS'],
-                                                radius=radi * u.arcmin)
+                                                radius=radius * u.arcmin)
                 hdu = server_img[0][0]
             except Exception as e:
                 print("SkyView could not get the image from DSS server.")
                 print(e)
                 raise SystemExit
 
-        wcs = WCS(hdu.header)
+        fig = aplpy.FITSFigure(hdu, figsize=(12, 12))
 
-        data = hdu.data.astype(float)
+        srg_c = coordinates.SkyCoord(srg['RA2000'], srg['DECL2000'], unit=(u.hourangle, u.deg), frame='icrs')
+        srg['APLHA_J2000'] = srg_c.ra.degree
+        srg['DELTA_J2000'] = srg_c.dec.degree
 
-        bkg = sep.Background(data)
-        # bkg_image = bkg.back()
-        # bkg_rms = bkg.rms()
-        data_sub = data - bkg
-        m, s = np.mean(data_sub), np.std(data_sub)
+        table = XMatch.query(cat1=srg['APLHA_J2000', 'DELTA_J2000', 'RA2000', 'DECL2000'],
+                             cat2='vizier:{}'.format("I/345/gaia2"),
+                             max_distance= srg_radius * u.arcsec, colRA1='APLHA_J2000',
+                             colDec1='DELTA_J2000')
 
-        ax = plt.subplot(projection=wcs)
+        table_pd = table.to_pandas()
 
-        plt.imshow(data_sub, interpolation='nearest',
-                   cmap='gray', vmin=m - s, vmax=m + s, origin='lower')
-        ax.coords.grid(True, color='white', ls='solid')
-        ax.coords[0].set_axislabel('Galactic Longitude')
-        ax.coords[1].set_axislabel('Galactic Latitude')
+        table_pd_masked = table_pd[(table_pd['phot_g_mean_mag'] >= min_mag) &
+                             (table_pd['phot_g_mean_mag'] <= max_mag)]
 
-        overlay = ax.get_coords_overlay('icrs')
-        overlay.grid(color='white', ls='dotted')
-        overlay[0].set_axislabel('Right Ascension (ICRS)')
-        overlay[1].set_axislabel('Declination (ICRS)')
+        # fig.show_markers(srg['APLHA_J2000'], srg['DELTA_J2000'], edgecolor='green')
+        fig.show_markers(table_pd_masked['APLHA_J2000'], table_pd_masked['DELTA_J2000'], edgecolor='red')
+        # fig.show_markers(srg['APLHA_J2000'], srg['DELTA_J2000'], edgecolor='red')
 
-        sb = Query()
-        ac = AstCalc()
-        if image_path:
-            fo = FitsOps(image_path)
-            if not odate:
-                odate = fo.get_header('date-obs')
-            else:
-                odate = odate
-            ra_dec = ac.center_finder(image_path, wcs_ref=True)
-        elif not image_path and ra and dec and odate:
-            odate = odate
-            ra_dec = [co.ra, co.dec]
+        srg_pd = srg.to_pandas()
+        for i, element in enumerate(table_pd_masked['RA2000']):
+            srg_pd = srg_pd[srg_pd.RA2000 != element]
 
-        request0 = sb.find_skybot_objects(odate,
-                                          ra_dec[0].degree,
-                                          ra_dec[1].degree,
-                                          radius=radi)
+        srg_best_positions = srg_pd
 
-        if request0[0]:
-            asteroids = request0[1]
-        elif request0[0] is False:
-            print(request0[1])
-            raise SystemExit
+        fig.show_markers(srg_best_positions['APLHA_J2000'], srg_best_positions['DELTA_J2000'], edgecolor='blue')
 
-        request1 = sb.find_skybot_objects(odate,
-                                          ra_dec[0].degree,
-                                          ra_dec[1].degree,
-                                          radius=float(radi),
-                                          time_travel=time_travel)
+        fig.show_grayscale(invert=True)
+        fig.add_colorbar()
+        fig.add_grid()
 
-        if request1[0]:
-            asteroids_after = request1[1]
-        elif request1[0] is False:
-            print(request1[1])
-            raise SystemExit
+        fig.set_title("{} {}".format(ra, dec))
 
-        for i in range(len(asteroids)):
-            if float(asteroids['m_v'][i]) <= max_mag:
-                c = coordinates.SkyCoord('{0} {1}'.format(
-                    asteroids['ra(h)'][i],
-                    asteroids['dec(deg)'][i]),
-                    unit=(u.hourangle, u.deg),
-                    frame='icrs')
-
-                c_after = coordinates.SkyCoord('{0} {1}'.format(
-                    asteroids_after['ra(h)'][i],
-                    asteroids_after['dec(deg)'][i]),
-                    unit=(u.hourangle, u.deg),
-                    frame='icrs')
-
-                r = FancyArrowPatch(
-                    (c.ra.degree, c.dec.degree),
-                    (c_after.ra.degree, c_after.dec.degree),
-                    arrowstyle='->',
-                    mutation_scale=10,
-                    transform=ax.get_transform('icrs'))
-
-                p = Circle((c.ra.degree, c.dec.degree), 0.005,
-                           edgecolor=circle_color,
-                           facecolor='none',
-                           transform=ax.get_transform('icrs'))
-                ax.text(c.ra.degree,
-                        c.dec.degree - 0.007,
-                        asteroids['name'][i],
-                        size=12,
-                        color='black',
-                        ha='center',
-                        va='center',
-                        transform=ax.get_transform('icrs'))
-
-                r.set_facecolor('none')
-                r.set_edgecolor(arrow_color)
-                ax.add_patch(p)
-                ax.add_patch(r)
-        # plt.gca().invert_xaxis()
-        if invert_yaxis == "True":
-            plt.gca().invert_yaxis()
-        plt.show()
-        print(asteroids)
-        return True
+        return srg_best_positions

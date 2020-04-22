@@ -1,8 +1,12 @@
 from astroquery.vizier import Vizier
 import astropy.units as u
 import astropy.coordinates as coord
-from astropy.table import Table
 from astropy.coordinates import match_coordinates_sky
+from astropy.table import Table
+from astropy import units as u
+import astropy.io.fits as fits
+from astropy.constants import c
+from astropy.time import Time
 from astropy import stats
 from .io import FileOps
 from .astronomy import FitsOps
@@ -12,18 +16,29 @@ import numpy as np
 import sep
 from os import system
 
-
-from astropy import units as u
 from astroquery.xmatch import XMatch
+from astroquery.skyview import SkyView
+from astroquery.vizier import Vizier
+from astropy.wcs import WCS
 
-from .visuals import StarPlot
-
-from matplotlib import pyplot as plt
+import matplotlib.gridspec as gridspec
+import matplotlib.lines as mlines
 from sklearn.preprocessing import Imputer
 
 
 from sklearn import linear_model, datasets
 from pylab import rcParams
+
+from datetime import datetime
+
+import os
+
+
+with warnings.catch_warnings():
+   warnings.simplefilter("ignore")
+   import aplpy
+
+from .visuals import StarPlot
 
 
 class Query:
