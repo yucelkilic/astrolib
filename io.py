@@ -12,7 +12,7 @@ from datetime import datetime
 from astropy.table import Table
 import datetime as dt
 from matplotlib.dates import strpdate2num, num2date
-
+from termcolor import colored
 
 class FileOps:
 
@@ -112,7 +112,7 @@ class FileOps:
             print(e)
             return False
 
-    def print_sch_file(self, schs_path, dT=60, dF=2, dS=5):
+    def print_sch_file(self, schs_path, dT=60, dF=4, dS=6, email_format=True, project_term=None):
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
@@ -122,6 +122,8 @@ class FileOps:
         @param dF: Time consumed in changing the filters
         @type float
         @param dS: Time consumed in downloading the frame from CCD
+        @type float
+        @param email_format: Print e-mail format
         @type float
         @return: array
         """
@@ -164,14 +166,58 @@ class FileOps:
         project_proper_tbl = Table(project_proper_np, names=('source',
                                                              'ra',
                                                              'dec',
-                                                             'filter(exp)',
+                                                             'filter',
                                                              'repeat'))
-        print("Used filters: {0}".format(sorted(set(filters))))
+        used_filters = sorted(set(filters))
+        if email_format is True:
+
+            if "A" in project_term:
+                project_term = project_term + " (Şubat - Nisan)"
+            elif "B" in project_term:
+                    project_term = project_term + " (Mayıs - Temmuz)"
+            elif "C" in project_term:
+                    project_term = project_term + " (Ağustos - Ekim)"
+            elif "D" in project_term:
+                    project_term = project_term + " (Kasım - Ocak)"
+
+            print("Değerli Araştırmacımız,")
+            print("")
+            print("Robotik T60 Teleskobu'nda {} döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde "
+                  "aşağıdaki gibi kayıtlıdır. Herhangi bir düzeltme talebinizin olmaması durumunda gözlemleriniz "
+                  "bu şekilde gerçekleştirilecektir. ".format(project_term))
+            print("")
+            print(colored("Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.", 'red'))
+            print("")
+
+        print("Used filters: {0}".format(used_filters))
         print("Used exposures: {0}".format(sorted(set(exposures))))
         print("Total exposure time: {0} s".format(sum(total_exposure_time)))
         print("Total observation time: {0} s".format(
             sum(total_observation_time)))
         print("Total objects : {0}".format(len(project_proper_tbl)))
+
+        print("")
+
+        project_proper_tbl['source'].unit = ''
+        project_proper_tbl['ra'].unit = 'HH:MM:SS'
+        project_proper_tbl['dec'].unit = 'DD:MM:SS'
+        project_proper_tbl['filter'].unit = 's'
+        project_proper_tbl['repeat'].unit = 'cnt'
+
+
+        print(project_proper_tbl)
+
+        if '' in used_filters:
+            print("")
+            print(colored("Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. "
+                          "Lütfen en kısa sürede talep ettiğiniz filtre/poz sürelerini iletiniz.", 'red'))
+
+        if email_format is True:
+            print("")
+            print("İyi çalışmalar dileriz.")
+            print("")
+            print("TÜBİTAK Ulusal Gözlemevi (TUG) - Robotik T60 Teleskobu - © {0}".format(datetime.today().year))
+
         return project_proper_tbl
 
     def pts_to_sch(self, host, user, passwd,
