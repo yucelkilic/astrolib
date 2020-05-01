@@ -13,6 +13,10 @@ from astropy.table import Table
 import datetime as dt
 from matplotlib.dates import strpdate2num, num2date
 from termcolor import colored
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.header import Header
 
 class FileOps:
 
@@ -112,7 +116,7 @@ class FileOps:
             print(e)
             return False
 
-    def print_sch_file(self, schs_path, dT=60, dF=4, dS=6, email_format=True, project_term=None):
+    def print_sch_file(self, schs_path, dT=60, dF=4, dS=6, email_format=True, email_to=None, project_term=None):
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
@@ -125,6 +129,10 @@ class FileOps:
         @type float
         @param email_format: Print e-mail format
         @type float
+        @param email_to: Email to content
+        @type string
+        @param project_term: Project term
+        @type string
         @return: array
         """
 
@@ -134,6 +142,7 @@ class FileOps:
         total_observation_time = []
         exposures = []
         filters = []
+
         for file_name in sch_files:
             sch_dict = self.read_sch_file(file_name)
 
@@ -161,6 +170,8 @@ class FileOps:
             project_proper.append([sch_dict['SOURCE'], sch_dict['RA'], sch_dict['DEC'], " ".join(filter_and_durations),
                                    sch_dict['REPEAT']])
 
+        pid = str(sch_dict['SOURCE']).split("_")[0]
+
         project_proper_np = np.asarray(project_proper)
 
         project_proper_tbl = Table(project_proper_np, names=('source',
@@ -169,6 +180,7 @@ class FileOps:
                                                              'filter',
                                                              'repeat'))
         used_filters = sorted(set(filters))
+        ctx = ""
         if email_format is True:
 
             if "A" in project_term:
@@ -180,23 +192,28 @@ class FileOps:
             elif "D" in project_term:
                     project_term = project_term + " (Kasım - Ocak)"
 
-            print("Değerli Araştırmacımız,")
-            print("")
-            print("Robotik T60 Teleskobu'nda {} döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde "
-                  "aşağıdaki gibi kayıtlıdır. Herhangi bir düzeltme talebinizin olmaması durumunda gözlemleriniz "
-                  "bu şekilde gerçekleştirilecektir. ".format(project_term))
-            print("")
-            print(colored("Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.", 'red'))
-            print("")
+            ctx = "Değerli Araştırmacımız,\n" \
+                  "\n" \
+                  "Robotik T60 Teleskobu'nda {} döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde " \
+                  "aşağıdaki gibi kayıtlıdır. Herhangi bir düzeltme talebinizin olmaması durumunda gözlemleriniz " \
+                  "bu şekilde gerçekleştirilecektir.".format(project_term)
+            ctx += "\n"
+            ctx += "\n"
+            ctx += colored("Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.", 'red')
+            ctx += "\n"
+            ctx += "\n"
 
-        print("Used filters: {0}".format(used_filters))
-        print("Used exposures: {0}".format(sorted(set(exposures))))
-        print("Total exposure time: {0} s".format(sum(total_exposure_time)))
-        print("Total observation time: {0} s".format(
-            sum(total_observation_time)))
-        print("Total objects : {0}".format(len(project_proper_tbl)))
-
-        print("")
+        ctx += "Kullanılan filtreler: {0}".format(used_filters)
+        ctx += "\n"
+        ctx += "Kullanılan poz süreleri: {0}".format(sorted(set(exposures)))
+        ctx += "\n"
+        ctx += "Toplam poz süresi: {0} s".format(sum(total_exposure_time))
+        ctx += "\n"
+        ctx += "Toplam gözlem zamanı: {0} s".format(
+            sum(total_observation_time))
+        ctx += "\n"
+        ctx += "Toplam nesne sayısı : {0}".format(len(project_proper_tbl))
+        ctx += "\n"
 
         project_proper_tbl['source'].unit = ''
         project_proper_tbl['ra'].unit = 'HH:MM:SS'
@@ -204,21 +221,31 @@ class FileOps:
         project_proper_tbl['filter'].unit = 's'
         project_proper_tbl['repeat'].unit = 'cnt'
 
-
-        print(project_proper_tbl)
+        ctx += "\n"
+        ctx += str(project_proper_tbl)
 
         if '' in used_filters:
-            print("")
-            print(colored("Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. "
-                          "Lütfen en kısa sürede talep ettiğiniz filtre/poz sürelerini iletiniz.", 'red'))
+            ctx += "\n"
+            ctx += "\n"
+            ctx += colored("Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. "
+                           "Lütfen en kısa sürede talep ettiğiniz filtre/poz sürelerini iletiniz.", 'red')
 
         if email_format is True:
-            print("")
-            print("İyi çalışmalar dileriz.")
-            print("")
-            print("TÜBİTAK Ulusal Gözlemevi (TUG) - Robotik T60 Teleskobu - © {0}".format(datetime.today().year))
+            ctx += "\n"
+            ctx += "\n"
+            ctx += "İyi çalışmalar dileriz."
+            ctx += "\n"
+            ctx += "\n"
+            ctx += "TÜBİTAK Ulusal Gözlemevi (TUG) - Robotik T60 Teleskobu - © {0}".format(datetime.today().year)
 
-        return project_proper_tbl
+            if email_to is not None:
+                self.send_email(receivers=[email_to],
+                                subject="TUG Robotik T60 Teleskobu {0} Dönemi Nesne Kontrol Talebi - {1}".format(
+                                    project_term,
+                                    pid),
+                                content=ctx)
+
+        return ctx
 
     def pts_to_sch(self, host, user, passwd,
                    out_file_path="./", delimiter=","):
@@ -1033,3 +1060,26 @@ BLOCKREPEAT = 1
                              'Mag',
                              'SDRa',
                              'SDDecl']])
+
+    def send_email(self, sender=str(Header('TUG Robotik T60 Teleskobu <tug.t60@tug.tubitak.gov.tr>')),
+                   receivers=[],
+                   mail_server='',
+                   subject=None,
+                   content=None):
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = sender
+        msg['To'] = ", ".join(receivers)
+
+        html_msg = MIMEText(content, 'html')
+        msg.attach(html_msg)
+
+        try:
+            smtpObj = smtplib.SMTP(mail_server, 25)
+            smtpObj.sendmail(sender, receivers, msg.as_string())
+            smtpObj.quit()
+            print(colored("Successfully sent email to {0}".format(receivers[0]), "green"))
+            return True
+        except:
+            print(colored("Error: unable to send email to {0}".format(receivers[0]), "red"))
+            return False
