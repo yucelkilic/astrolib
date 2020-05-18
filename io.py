@@ -182,21 +182,25 @@ class FileOps:
         used_filters = sorted(set(filters))
         ctx = ""
         if email_format is True:
-
-            if "A" in project_term:
-                project_term = project_term + " (Şubat - Nisan)"
-            elif "B" in project_term:
+            if project_term is not None:
+                if "A" in project_term:
+                    project_term = project_term + " (Şubat - Nisan)"
+                elif "B" in project_term:
                     project_term = project_term + " (Mayıs - Temmuz)"
-            elif "C" in project_term:
+                elif "C" in project_term:
                     project_term = project_term + " (Ağustos - Ekim)"
-            elif "D" in project_term:
+                elif "D" in project_term:
                     project_term = project_term + " (Kasım - Ocak)"
 
-            ctx = "Değerli Araştırmacımız,\n" \
-                  "\n" \
-                  "Robotik T60 Teleskobu'nda {} döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde " \
-                  "aşağıdaki gibi kayıtlıdır. Herhangi bir düzeltme talebinizin olmaması durumunda gözlemleriniz " \
-                  "bu şekilde gerçekleştirilecektir.".format(project_term)
+                ctx = "Değerli Araştırmacımız,\n" \
+                      "\n" \
+                      "Robotik T60 Teleskobu'nda {} döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde " \
+                      "aşağıdaki gibi kayıtlıdır. Herhangi bir düzeltme talebinizin olmaması durumunda gözlemleriniz " \
+                      "bu şekilde gerçekleştirilecektir.".format(project_term)
+            else:
+                ctx = "Değerli Araştırmacımız,\n" \
+                      "\n" \
+                      "Talep ettiğiniz değişiklik sisteme aşağıdaki gibi uygulanmıştır."
             ctx += "\n"
             ctx += "\n"
             ctx += colored("Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.", 'red')
