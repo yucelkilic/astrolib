@@ -2,6 +2,7 @@
 
 import glob
 import numpy as np
+import pandas as pd
 import paramiko
 import os
 import sqlite3
@@ -9,13 +10,19 @@ from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
 from astropy.table import Table
-
+import datetime as dt
+from matplotlib.dates import strpdate2num, num2date
+from termcolor import colored
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.header import Header
 
 class FileOps:
 
     def make_date(self, datestr, datefrmt='%Y-%m-%d'):
 
-        return(datetime.strptime(datestr.decode('ascii'), datefrmt))
+        return datetime.strptime(datestr.decode('ascii'), datefrmt)
 
     def read_file_as_array(self, file_name):
         """
@@ -109,7 +116,7 @@ class FileOps:
             print(e)
             return False
 
-    def print_sch_file(self, schs_path, dT=60, dF=2, dS=5):
+    def print_sch_file(self, schs_path, dT=60, dF=4, dS=6, email_format=True, email_to=None, project_term=None):
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
@@ -120,6 +127,12 @@ class FileOps:
         @type float
         @param dS: Time consumed in downloading the frame from CCD
         @type float
+        @param email_format: Print e-mail format
+        @type float
+        @param email_to: Email to content
+        @type string
+        @param project_term: Project term
+        @type string
         @return: array
         """
 
@@ -129,6 +142,7 @@ class FileOps:
         total_observation_time = []
         exposures = []
         filters = []
+
         for file_name in sch_files:
             sch_dict = self.read_sch_file(file_name)
 
@@ -156,20 +170,86 @@ class FileOps:
             project_proper.append([sch_dict['SOURCE'], sch_dict['RA'], sch_dict['DEC'], " ".join(filter_and_durations),
                                    sch_dict['REPEAT']])
 
+        pid = str(sch_dict['SOURCE']).split("_")[0]
+
         project_proper_np = np.asarray(project_proper)
 
         project_proper_tbl = Table(project_proper_np, names=('source',
                                                              'ra',
                                                              'dec',
-                                                             'filter(exp)',
+                                                             'filter',
                                                              'repeat'))
-        print("Used filters: {0}".format(sorted(set(filters))))
-        print("Used exposures: {0}".format(sorted(set(exposures))))
-        print("Total exposure time: {0} s".format(sum(total_exposure_time)))
-        print("Total observation time: {0} s".format(
-            sum(total_observation_time)))
-        print("Total objects : {0}".format(len(project_proper_tbl)))
-        return project_proper_tbl
+        used_filters = sorted(set(filters))
+        ctx = ""
+        if email_format is True:
+            if project_term is not None:
+                if "A" in project_term:
+                    project_term = project_term + " (Şubat - Nisan)"
+                elif "B" in project_term:
+                    project_term = project_term + " (Mayıs - Temmuz)"
+                elif "C" in project_term:
+                    project_term = project_term + " (Ağustos - Ekim)"
+                elif "D" in project_term:
+                    project_term = project_term + " (Kasım - Ocak)"
+
+                ctx = "Değerli Araştırmacımız,\n" \
+                      "\n" \
+                      "Robotik T60 Teleskobu'nda {} döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde " \
+                      "aşağıdaki gibi kayıtlıdır. Herhangi bir düzeltme talebinizin olmaması durumunda gözlemleriniz " \
+                      "bu şekilde gerçekleştirilecektir.".format(project_term)
+            else:
+                ctx = "Değerli Araştırmacımız,\n" \
+                      "\n" \
+                      "Talep ettiğiniz değişiklik sisteme aşağıdaki gibi uygulanmıştır."
+            ctx += "\n"
+            ctx += "\n"
+            ctx += colored("Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.", 'red')
+            ctx += "\n"
+            ctx += "\n"
+
+        ctx += "Kullanılan filtreler: {0}".format(used_filters)
+        ctx += "\n"
+        ctx += "Kullanılan poz süreleri: {0}".format(sorted(set(exposures)))
+        ctx += "\n"
+        ctx += "Toplam poz süresi: {0} s".format(sum(total_exposure_time))
+        ctx += "\n"
+        ctx += "Toplam gözlem zamanı: {0} s".format(
+            sum(total_observation_time))
+        ctx += "\n"
+        ctx += "Toplam nesne sayısı : {0}".format(len(project_proper_tbl))
+        ctx += "\n"
+
+        project_proper_tbl['source'].unit = ''
+        project_proper_tbl['ra'].unit = 'HH:MM:SS'
+        project_proper_tbl['dec'].unit = 'DD:MM:SS'
+        project_proper_tbl['filter'].unit = 's'
+        project_proper_tbl['repeat'].unit = 'cnt'
+
+        ctx += "\n"
+        ctx += str(project_proper_tbl)
+
+        if '' in used_filters:
+            ctx += "\n"
+            ctx += "\n"
+            ctx += colored("Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. "
+                           "Lütfen en kısa sürede talep ettiğiniz filtre/poz sürelerini iletiniz.", 'red')
+
+        if email_format is True:
+            ctx += "\n"
+            ctx += "\n"
+            ctx += "İyi çalışmalar dileriz."
+            ctx += "\n"
+            ctx += "\n"
+            ctx += "TÜBİTAK Ulusal Gözlemevi (TUG) - Robotik T60 Teleskobu - © {0}".format(datetime.today().year)
+
+            if email_to is not None:
+                self.send_email(receivers=[email_to],
+                                subject="TUG Robotik T60 Teleskobu {0} Dönemi Nesne Kontrol Talebi - {1}".format(
+                                    project_term,
+                                    pid),
+                                content=ctx)
+
+        return ctx
 
     def pts_to_sch(self, host, user, passwd,
                    out_file_path="./", delimiter=","):
@@ -670,7 +750,12 @@ BLOCKREPEAT = 1
                         'fwhmh',
                         'fwhmhs',
                         'fwhmv',
-                        'fwhmvs']
+                        'fwhmvs',
+                        'gain',
+                        'rdnoise',
+                        'readtime',
+                        'mjd',
+                        'hjd']
 
         # Connecting to the database file
         conn = sqlite3.connect(sqlite_file)
@@ -717,11 +802,48 @@ BLOCKREPEAT = 1
                 keyword_values.append(object_name)
             else:
                 keyword_value = fo.get_header(keyword)
-                if keyword_value is None:
+                if (keyword_value is None) or (keyword_value is False):
                     keyword_value = -9999
+                    
                 table_headers.append(keyword)
                 keyword_values.append(keyword_value)
 
+        gain_index = table_headers.index('gain')
+        hjd_index = table_headers.index('hjd')
+        mjd_index = table_headers.index('mjd')
+        rdnoise_index = table_headers.index('rdnoise')
+        readtime_index = table_headers.index('readtime')
+
+        gain = keyword_values[gain_index]
+        hjd = keyword_values[hjd_index]
+        mjd = keyword_values[mjd_index]
+        rdnoise = keyword_values[rdnoise_index]
+        readtime = keyword_values[readtime_index]
+
+        table_headers.remove('gain')
+        table_headers.remove('hjd')
+        table_headers.remove('mjd')
+        table_headers.remove('rdnoise')
+        table_headers.remove('readtime')
+
+        table_headers.append('gain')
+        table_headers.append('rdnoise')
+        table_headers.append('readtime')
+        table_headers.append('mjd')
+        table_headers.append('hjd')
+
+        keyword_values.remove(gain)
+        keyword_values.remove(hjd)
+        keyword_values.remove(mjd)
+        keyword_values.remove(rdnoise)
+        keyword_values.remove(readtime)
+
+        keyword_values.append(gain)
+        keyword_values.append(rdnoise)
+        keyword_values.append(readtime)
+        keyword_values.append(mjd)
+        keyword_values.append(hjd)
+        
         print(table_headers)
         print(keyword_values)
 
@@ -801,3 +923,167 @@ BLOCKREPEAT = 1
             print(e)
 
         return (ret)
+
+
+    def create_connection(self, db_file):
+        """ create a database connection to the SQLite database
+            specified by the db_file
+        :param db_file: database file
+        :return: Connection object or None
+        """
+        try:
+            conn = sqlite3.connect(db_file, isolation_level=None)
+            return conn
+        except Error as e:
+            print(e)
+
+        return None
+
+    def select_items_by_date(conn, database_table, start_jd, end_jd):
+        """
+        Query tasks by priority
+        :param conn: the Connection object
+        :param priority:
+        :return:
+        """
+
+        cur = conn.cursor()
+        cur.execute("SELECT * FROM {tbl} WHERE jd>={start_jd} AND jd<={end_jd} ORDER BY jd".format(tbl=database_table,
+                                                                                                   start_jd=start_jd,
+                                                                                                   end_jd=end_jd))
+
+        rows = cur.fetchall()
+
+        return Table(np.array(rows), names=('dateTime',
+                                           'xfactor',
+                                           'yfactor',
+                                           'exptime',
+                                           'pid',
+                                           'object_name',
+                                           'priority',
+                                           'instrume',
+                                           'jd',
+                                           'date-obs',
+                                           'time-obs',
+                                           'lst',
+                                           'latitude',
+                                           'elevatio',
+                                           'azimuth',
+                                           'ha',
+                                           'ra',
+                                           'dec',
+                                           'objra',
+                                           'objdec',
+                                           'epoch',
+                                           'equinox',
+                                           'filter',
+                                           'camtemp',
+                                           'focuspos',
+                                           'wxtemp',
+                                           'wxpres',
+                                           'wxwndspd',
+                                           'wxwnddir',
+                                           'wxhumid',
+                                           'biascor',
+                                           'thermcor',
+                                            'flatcor',
+                                            'badpxcor',
+                                            'fwhmh',
+                                            'fwhmhs',
+                                            'fwhmv',
+                                            'fwhmvs'))
+
+    def srg_ephemeris_reader(self, ephemeris_file):
+        """
+        Reads SRG satellite  ephemeris file.
+            Parameters
+            ----------
+            ephemeris_file: file object
+                Ephemeris file.
+            Returns
+            -------
+            'A pandas object'
+            Example:
+            -------
+            >>> from astrolib import visuals
+            >>> from astrolib import io
+            >>> fo = io.FileOps()
+            >>> fo.srg_ephemeris_reader("ephemeris_file.txt")
+        """
+
+        srg_ephem = np.genfromtxt(ephemeris_file,
+                                  comments='=',
+                                  delimiter=None,
+                                  dtype="U",
+                                  skip_header=5)
+
+        srg_ephem_pd = pd.DataFrame(srg_ephem,
+                                    columns=['Date',
+                                             'Time',
+                                             'Az',
+                                             'Um',
+                                             'RA2000_HH',
+                                             'RA2000_MM',
+                                             'RA2000_SS',
+                                             'DECL2000_DD',
+                                             'DECL2000_MM',
+                                             'DECL2000_SS',
+                                             'RARate',
+                                             'DECLRate',
+                                             'HourAng_HH',
+                                             'HourAng_MM',
+                                             'HourAng_SS',
+                                             'Phase',
+                                             'Illum',
+                                             'SunAng',
+                                             'Mag',
+                                             'SDRa',
+                                             'SDDecl'])
+
+        srg_ephem_pd['Date-Time'] = pd.to_datetime(srg_ephem_pd['Date'] + ' ' + srg_ephem_pd['Time'], format='%y-%m-%d %H:%M')
+        srg_ephem_pd['RA2000'] = srg_ephem_pd['RA2000_HH'] + ':' + srg_ephem_pd['RA2000_MM'] + ':' + \
+                                 srg_ephem_pd['RA2000_SS']
+        srg_ephem_pd['DECL2000'] = srg_ephem_pd['DECL2000_DD'] + ':' + srg_ephem_pd['DECL2000_MM'] + ':' + \
+                                 srg_ephem_pd['DECL2000_SS']
+        srg_ephem_pd['HourAng'] = srg_ephem_pd['HourAng_HH'] + ':' + srg_ephem_pd['HourAng_MM'] + ':' + \
+                                 srg_ephem_pd['HourAng_SS']
+
+        srg_astro_table = Table.from_pandas(srg_ephem_pd)
+
+        return(srg_astro_table[['Date-Time',
+                             'Az',
+                             'Um',
+                             'RA2000',
+                             'DECL2000',
+                             'RARate',
+                             'DECLRate',
+                             'HourAng',
+                             'Phase',
+                             'Illum',
+                             'SunAng',
+                             'Mag',
+                             'SDRa',
+                             'SDDecl']])
+
+    def send_email(self, sender=str(Header('TUG Robotik T60 Teleskobu <tug.t60@tug.tubitak.gov.tr>')),
+                   receivers=[],
+                   mail_server='',
+                   subject=None,
+                   content=None):
+        msg = MIMEMultipart('alternative')
+        msg['Subject'] = subject
+        msg['From'] = sender
+        msg['To'] = ", ".join(receivers)
+
+        html_msg = MIMEText(content, 'html')
+        msg.attach(html_msg)
+
+        try:
+            smtpObj = smtplib.SMTP(mail_server, 25)
+            smtpObj.sendmail(sender, receivers, msg.as_string())
+            smtpObj.quit()
+            print(colored("Successfully sent email to {0}".format(receivers[0]), "green"))
+            return True
+        except:
+            print(colored("Error: unable to send email to {0}".format(receivers[0]), "red"))
+            return False

@@ -7,6 +7,7 @@ import matplotlib.gridspec as gridspec
 
 from .astronomy import AstCalc
 from .astronomy import FitsOps
+from .io import FileOps
 from astropy.io import fits
 from astropy.table import Table
 from astropy import table
@@ -15,6 +16,9 @@ from astropy import units as u
 from astropy.wcs import WCS
 from astropy.stats import sigma_clip, mad_std
 from astroquery.skyview import SkyView
+from astroquery.xmatch import XMatch
+
+import aplpy
 
 import numpy as np
 import sep
@@ -691,3 +695,122 @@ class StarPlot:
         image.tonet('{0}.png'.format(fitshead))
 
         return True
+
+    def rota(self,
+             image_path=None,
+             object_name=None,
+             ephemeris_file=None,
+             odate=None,
+             radius=None,
+             srg_radius=10,
+             time_travel=1,
+             min_mag=0,
+             max_mag=17.0,
+             circle_color='yellow',
+             arrow_color='red',
+             invert_yaxis="True"):
+        """
+        Moving object trajectory plotter.
+            Parameters
+            ----------
+            ephemeris_file: file object
+                Ephemeris file.
+            object_name : str
+                Asteroid or moving object name.
+            odate : str
+                Ephemeris date of observation in date.
+            min_mag : list or float
+                Faintest magnitude to be plotted.
+                Default is '20.0'.
+            max_mag : float
+                Brightest magnitude to be plotted.
+                Default is '15.0'.
+            circle_color : str
+                Moving object mark color
+            arrow_color : Trajectory color
+            Returns
+            -------
+            'A table object or file'
+        """
+
+        from .catalog import Query
+
+        # filename = get_pkg_data_filename(image_path)
+        rcParams['figure.figsize'] = [12., 12.]
+        # rcParams.update({'font.size': 10})
+
+        fo = FileOps()
+        srg = fo.srg_ephemeris_reader("/Users/ykilic/Downloads/RTT-150_20200109-1708_20200110-0423.txt")
+
+        data_len = len(srg)
+        mid = int(len(srg) / 2)
+        data_mid_date = srg['Date-Time'][mid]
+        ra = srg['RA2000'][mid]
+        dec = srg['DECL2000'][mid]
+        odate = data_mid_date
+
+        if radius is None:
+            ra_first = srg['RA2000'][0]
+            dec_first = srg['DECL2000'][0]
+            ra_last = srg['RA2000'][data_len-1]
+            dec_last = srg['DECL2000'][data_len-1]
+            c_first = coordinates.SkyCoord(ra_first, dec_first, unit=(u.hourangle, u.deg), frame='icrs')
+            c_last = coordinates.SkyCoord(ra_last, dec_last, unit=(u.hourangle, u.deg), frame='icrs')
+            radius = c_first.separation(c_last)
+            radius = radius.arcmin
+
+        if image_path is not None:
+            hdu = fits.open(image_path)[0]
+        elif (image_path is None) and ra and dec and odate:
+            co = coordinates.SkyCoord('{0} {1}'.format(ra, dec),
+                                      unit=(u.hourangle, u.deg),
+                                      frame='icrs')
+            print('Target Coordinates:',
+                  co.to_string(style='hmsdms', sep=':'),
+                  'in {0} arcmin'.format(radius))
+            try:
+                print (co)
+                server_img = SkyView.get_images(position=co,
+                                                survey=['DSS'],
+                                                radius=radius * u.arcmin)
+                hdu = server_img[0][0]
+            except Exception as e:
+                print("SkyView could not get the image from DSS server.")
+                print(e)
+                raise SystemExit
+
+        fig = aplpy.FITSFigure(hdu, figsize=(12, 12))
+
+        srg_c = coordinates.SkyCoord(srg['RA2000'], srg['DECL2000'], unit=(u.hourangle, u.deg), frame='icrs')
+        srg['APLHA_J2000'] = srg_c.ra.degree
+        srg['DELTA_J2000'] = srg_c.dec.degree
+
+        table = XMatch.query(cat1=srg['APLHA_J2000', 'DELTA_J2000', 'RA2000', 'DECL2000'],
+                             cat2='vizier:{}'.format("I/345/gaia2"),
+                             max_distance= srg_radius * u.arcsec, colRA1='APLHA_J2000',
+                             colDec1='DELTA_J2000')
+
+        table_pd = table.to_pandas()
+
+        table_pd_masked = table_pd[(table_pd['phot_g_mean_mag'] >= min_mag) &
+                             (table_pd['phot_g_mean_mag'] <= max_mag)]
+
+        # fig.show_markers(srg['APLHA_J2000'], srg['DELTA_J2000'], edgecolor='green')
+        fig.show_markers(table_pd_masked['APLHA_J2000'], table_pd_masked['DELTA_J2000'], edgecolor='red')
+        # fig.show_markers(srg['APLHA_J2000'], srg['DELTA_J2000'], edgecolor='red')
+
+        srg_pd = srg.to_pandas()
+        for i, element in enumerate(table_pd_masked['RA2000']):
+            srg_pd = srg_pd[srg_pd.RA2000 != element]
+
+        srg_best_positions = srg_pd
+
+        fig.show_markers(srg_best_positions['APLHA_J2000'], srg_best_positions['DELTA_J2000'], edgecolor='blue')
+
+        fig.show_grayscale(invert=True)
+        fig.add_colorbar()
+        fig.add_grid()
+
+        fig.set_title("{} {}".format(ra, dec))
+
+        return srg_best_positions

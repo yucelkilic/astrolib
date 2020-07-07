@@ -1,7 +1,13 @@
 from astroquery.vizier import Vizier
 import astropy.units as u
 import astropy.coordinates as coord
+from astropy.coordinates import match_coordinates_sky
 from astropy.table import Table
+from astropy import units as u
+import astropy.io.fits as fits
+from astropy.constants import c
+from astropy.time import Time
+from astropy import stats
 from .io import FileOps
 from .astronomy import FitsOps
 from .astronomy import TimeOps
@@ -9,6 +15,30 @@ from .astronomy import AstCalc
 import numpy as np
 import sep
 from os import system
+
+from astroquery.xmatch import XMatch
+from astroquery.skyview import SkyView
+from astroquery.vizier import Vizier
+from astropy.wcs import WCS
+
+import matplotlib.gridspec as gridspec
+import matplotlib.lines as mlines
+from sklearn.preprocessing import Imputer
+
+
+from sklearn import linear_model, datasets
+from pylab import rcParams
+
+from datetime import datetime
+
+import os
+
+
+with warnings.catch_warnings():
+   warnings.simplefilter("ignore")
+   import aplpy
+
+from .visuals import StarPlot
 
 
 class Query:
@@ -54,13 +84,153 @@ class Query:
                                    width="{:f}d".format(rad_deg),
                                    catalog="I/337/gaia")[0])
 
-    def match_catalog(self, file_name, radius=0.002, max_mag=20,
-                      max_sources=30, plot=False):
+    def match_catalog(self, file_name,
+                      ra_keyword="ALPHA_J2000",
+                      dec_keyword="DELTA_J2000",
+                      catalogue='I/345/gaia2',
+                      filter=None,
+                      phot_object={None},
+                      plot=False):
+        """
+        Basic circular aperture photometry of given images.
+        Parameters
+        ----------
+        file_name : file object
+             File name to be source extracted.
+        ra_keyword : str
+            RA keyword in catalogue.
+            Default is "ALPHA_J2000"
+        dec_keyword : str
+            DEC keyword in catalogue.
+            Default is "DEC_J2000"
+        catalogue : vizer catalogue object
+            Vizer catalogue name
+            Default is 'I/345/gaia2'.
+        filter : str
+            Filter of image.
+            Default is 'Vmag'.
+        phot_object : astropy table
+            Astropy table of objetcs that contains "ALPHA_J2000" and "DEC_J2000" columns.
+            Default is None.
+        plot: boolean
+            Shell we plot the correlation?
+        Returns
+        -------
+        'A dict object'
+        Examples
+        --------
+        >>> from astrolib import catalog
+        >>> from astrolib import astronomy
+        >>> from astropy.table import Table
+
+        >>> co = catalog.Query()
+        >>> ac = astronomy.AstCalc()
+        >>> c = ac.radec2wcs("21:05:15.250", "+07:52:6.734")
+
+        >>> ra_list_in_deg = [c.ra.degree]
+        >>> dec_list_in_deg = [c.dec.degree]
+
+        >>> phot_object = Table([ra_list_in_deg, dec_list_in_deg], names=("ALPHA_J2000", "DELTA_J2000"))
+
+        >>> co.match_catalog("file.fits",  catalogue="II/336/apass9",
+            filter="Vmag",
+            phot_object=phot_object,
+            plot=True)
+        """
+        fo = FitsOps(file_name)
+        ds = fo.source_extract()
+
+        table = XMatch.query(cat1=ds,
+                             cat2='vizier:{}'.format(catalogue),
+                             max_distance=5 * u.arcsec, colRA1=ra_keyword,
+                             colDec1=dec_keyword)
+
+        table['deltaMag'] = table[filter] - table['MAG_AUTO']
+
+        mean, median, stddev = stats.sigma_clipped_stats(table['deltaMag'], sigma=2, maxiters=5)
+
+        linear_zero_point = None
+        linear_r2 = None
+        ransac_r2 = None
+        ransac_zero_point = None
+        linear_calibrated_mag = []
+        ransac_calibrated_mag = []
+
+        X = np.asarray(table['MAG_AUTO']).reshape(-1, 1)
+        y_ = np.asarray(table[filter]).reshape(-1, 1)
+        imputer = Imputer()
+        y = imputer.fit_transform(y_)
+
+        # Fit line using all data
+        lr = linear_model.LinearRegression()
+        lr.fit(X, y)
+
+        # Robustly fit linear model with RANSAC algorithm
+        ransac = linear_model.RANSACRegressor()
+        ransac.fit(X, y)
+        inlier_mask = ransac.inlier_mask_
+        outlier_mask = np.logical_not(inlier_mask)
+
+        # Predict data of estimated models
+        line_X = np.arange(X.min(), X.max())[:, np.newaxis]
+        line_y = lr.predict(line_X)
+        line_y_ransac = ransac.predict(line_X)
+
+        # Compare estimated coefficients
+        linear_zero_point = lr.intercept_
+        linear_r2 = lr.coef_
+        ransac_r2 = ransac.estimator_.coef_
+        ransac_zero_point = ransac.estimator_.intercept_
+
+        if phot_object is not None:
+            phot_object[ra_keyword].unit = u.deg
+            phot_object[dec_keyword].unit = u.deg
+
+            for object in phot_object:
+                c = coord.SkyCoord(object[ra_keyword], object[dec_keyword], frame="icrs", unit="deg")
+                catalog = coord.SkyCoord(ds[ra_keyword], ds[dec_keyword], frame="icrs", unit="deg")
+                max_sep = 1.0 * u.arcsec
+                idx, d2d, d3d = c.match_to_catalog_3d(catalog)
+                sep_constraint = d2d < max_sep
+                to_be_calibrated_table = ds[idx]
+
+                linear_calibrated_mag.append(
+                    lr.predict(np.asarray(to_be_calibrated_table['MAG_AUTO']).reshape(-1, 1)))
+                ransac_calibrated_mag.append(
+                    ransac.predict(np.asarray(to_be_calibrated_table['MAG_AUTO']).reshape(-1, 1)))
+
+        if plot is True:
+            lw = 2
+            rcParams['figure.figsize'] = 16, 10
+            plt.scatter(X[inlier_mask], y[inlier_mask], color='yellowgreen', marker='.',
+                        label='Inliers')
+            plt.scatter(X[outlier_mask], y[outlier_mask], color='gold', marker='.',
+                        label='Outliers')
+            plt.plot(line_X, line_y, color='navy', linewidth=lw, label='Linear regressor')
+            plt.plot(line_X, line_y_ransac, color='cornflowerblue', linewidth=lw,
+                     label='RANSAC regressor')
+            plt.legend(loc='lower right')
+            plt.xlabel("MAG_AUTO")
+            plt.ylabel(filter)
+            plt.show()
+
+        return ({'table': table,
+                 'astropy_zero_point': median,
+                 'linear_zero_point': linear_zero_point[0],
+                 'ransac_zero_point': ransac_zero_point[0],
+                 'linear_r2': linear_r2[0][0],
+                 'ransac_r2': ransac_r2[0][0],
+                 'stddev': stddev,
+                 'linear_calibrated_mag': linear_calibrated_mag[0],
+                 'ransac_calibrated_mag': ransac_calibrated_mag[0]})
+
+    def match_gaia_catalog(self, file_name, radius=0.002, max_mag=20,
+                           max_sources=30, plot=False):
 
         """
         Match detect sources with Gaia catalogue.
-        @param file_name: FITS image path to be search.
-        @type file_name: path
+        @param file_name: FITS image or cat file.
+        @type file_name: file or path
         @param radius: Radiys confirmation circle [in degrees]
         @type radius: float
         @param max_mag: Limit G magnitude to be queried object(s)
@@ -140,7 +310,7 @@ class Query:
                                                    'dec_calc',
                                                    'ra_diff',
                                                    'dec_diff'))
-        
+
         if plot:
             from .visuals import StarPlot
             data = fo.hdu[0].data.astype(float)
@@ -151,7 +321,7 @@ class Query:
             splt.star_plot(data_sub, tgaia_matched)
 
         print("Matched objects:", len(tgaia_matched))
-        return(tgaia_matched)
+        return (tgaia_matched)
 
     def find_skybot_objects(self,
                             odate,
