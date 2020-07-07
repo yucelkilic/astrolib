@@ -240,7 +240,7 @@ class AstCalc:
         ret = coor1.separation(coor2)
         return(min_dist <= ret.arcsecond <= max_dist)
 
-    def flux2mag(self, flux, exptime):
+    def flux2mag(self, flux, fluxerr, exptime=None):
 
         """
         Converts flux to magnitude.
@@ -253,8 +253,17 @@ class AstCalc:
 
         try:
             # This calculation for normalize flux to exposure time
-            mag = -2.5 * math.log10(flux) + 2.5 * math.log10(exptime)
-            return(mag)
+            if exptime is None:
+                mag = -2.5 * math.log10(flux)
+            else:
+                mag = -2.5 * math.log10(flux) + 2.5 * math.log10(exptime)
+
+            mag_err = math.sqrt(flux / fluxerr)
+
+            if math.isinf(mag_err):
+                mag_err = 0
+
+            return mag, mag_err
         except Exception as e:
             print(e)
 
@@ -1056,7 +1065,8 @@ class TimeOps:
         fitsops = FitsOps(file_name)
         expt = fitsops.get_header(exp)
         dat = fitsops.get_header(dt)
-        tmstamp = self.get_timestamp(dat)
+        stp_dat = str(dat).replace(" ", "")
+        tmstamp = self.get_timestamp(stp_dat)
         ret = tmstamp + timedelta(seconds=float(expt) / 2)
 
         return(ret)
