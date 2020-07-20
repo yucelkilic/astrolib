@@ -144,7 +144,32 @@ class Query:
         object_name = fo.get_header("OBJECT")
         exptime = fo.get_header("EXPTIME")
         telescope = fo.get_header("TELESCOP")
-  
+
+        if filter is None:
+            filter = fo.get_header("FILTER")
+
+            if "T100" in telescope:
+                if "u" in filter:
+                    filter = "upmag"
+                elif "g" in filter:
+                    filter = "gpmag"
+                elif "r" in filter:
+                    filter = "rpmag"
+                elif "i" in filter:
+                    filter = "ipmag"
+                elif "z" in filter:
+                    filter = "zpmag"
+                elif "U" in filter:
+                    filter = "Umag"
+                elif "B" in filter:
+                    filter = "Bmag"
+                elif "V" in filter:
+                    filter = "Vmag"
+                elif "R" in filter:
+                    filter = "Rmag"
+                elif "I" in filter:
+                    filter = "Imag"
+
         ds = fo.source_extract()
 
         table = XMatch.query(cat1=ds,
