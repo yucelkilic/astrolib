@@ -176,7 +176,7 @@ class Query:
                              cat2='vizier:{}'.format(catalogue),
                              max_distance=5 * u.arcsec, colRA1=ra_keyword,
                              colDec1=dec_keyword)
-        print(table.colnames)
+        # print(table.colnames)
 
         table['deltaMag'] = table[filter] - table["MAG_APER"]
 
