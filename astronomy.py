@@ -206,9 +206,12 @@ NET {6}""".format(code, observer, observer, tel,
         data_sub = data - bkg
 
         sew = sewpy.SEW(params=['FLAGS', 'X_IMAGE', 'Y_IMAGE', 'ALPHA_J2000', 'DELTA_J2000', 'FLUX_AUTO', 'FLUXERR_AUTO',
+                                  'FLUX_APER', 'FLUXERR_APER', 'FLUX_PETRO', 'FLUXERR_PETRO', 'FLUX_MAX', 'XPEAK_IMAGE', 'YPEAK_IMAGE', 'MAG_APER', 'MAGERR_APER',
                           'BACKGROUND', 'MAG_AUTO', 'MAGERR_AUTO', 'FWHM_IMAGE', 'ELONGATION'],
                         config={'DETECT_THRESH': 3,
                                 'ANALYSIS_THRESH': 3,
+                                'PHOT_APERTURES': 5,
+                                'PHOT_PETROPARAMS': '"5, 5"',
                                 'DETECT_MINAREA': 1,
                                 'DEBLEND_NTHRESH': 16,
                                 'DEBLEND_MINCONT': 0.00001,
@@ -218,6 +221,8 @@ NET {6}""".format(code, observer, observer, tel,
                                 'FILTER': 'Y',
                                 'VERBOSE_TYPE': 'QUIET'})
         out = sew(self.file_name)
+        out["table"]["MAG_AUTO"][np.where(out["table"]["MAG_AUTO"] == 99)] = None
+        out["table"]["MAGERR_AUTO"][np.where(out["table"]["MAGERR_AUTO"] == 99)] = None
         return out["table"]
 
 
