@@ -166,10 +166,7 @@ class Query:
                 elif "V" in filter:
                     filter = "Vmag"
                 elif "R" in filter:
-                    if "apass" in catalogue:
-                        filter = "Rmag"
-                    else:
-                        filter = "R"
+                    filter = "Rmag"
                 elif "I" in filter:
                     filter = "Imag"
 
