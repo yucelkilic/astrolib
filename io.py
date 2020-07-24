@@ -6,6 +6,9 @@ import pandas as pd
 import paramiko
 import os
 import sqlite3
+import folium
+from geopy.point import Point
+from fastkml.kml import KML
 from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
@@ -1087,3 +1090,96 @@ BLOCKREPEAT = 1
         except:
             print(colored("Error: unable to send email to {0}".format(receivers[0]), "red"))
             return False
+
+    def read_kml(self, kml_file):
+        """
+        Reads KML files.
+            Parameters
+            ----------
+            fname: file object
+                KML file.
+            Returns
+            -------
+            'list'
+        """
+        kml = KML()
+        kml.from_string(open(kml_file, "rb").read())
+        points = dict()
+        pairs = []
+
+        for feature in kml.features():
+            for d_i, placemark in enumerate(feature.features()):
+                pairs = []
+                for j, k in enumerate(placemark.geometry.coords.xy[0]):
+                    pairs.append((placemark.geometry.coords.xy[1][j], k))
+                if placemark.name in points:
+                    points[placemark.name + str(d_i)] = pairs
+                else:
+                    points[placemark.name] = pairs
+        return points
+
+    def create_occultation_map(self,
+                               location_file,
+                               kml_file,
+                               sep="&", header=0,
+                               observatory_column_keyword="Observatory",
+                               latitude_column_keyword="Latitude",
+                               longitude_column_keyword="Longitude", save_map=False):
+        """
+        Creates occultation map.
+            Parameters
+            ----------
+            location_file: file object
+                Location file.
+            sep: str
+                Seperator of row data.
+            header: int
+                Row position of header for input file.
+            latitude_column_keyword: str
+                Keyword of latitude column.
+            longitude_column_keyword: str
+                Keyword of longitude column.
+            Returns
+            -------
+            'A map object'
+            Example:
+            -------
+            >>> from astrolib import io
+            >>> fo = io.FileOps()
+            >>> fo.create_occultation_map(kml_file="2002KX14_20200526_NIMAv7_LuckyStar.kmz", location_file="2002KX14_locations.txt")
+        """
+        for_map = pd.read_csv(location_file, sep=sep, header=header)
+
+        # Make an empty map
+        m = folium.Map(location=[39, 32], zoom_start=6)
+
+        # I can add marker one by one on the map
+        for i in range(0, len(for_map)):
+            long = str(for_map[longitude_column_keyword][i]).strip()
+            lat = str(for_map[latitude_column_keyword][i]).strip()
+            observatory = str(for_map[observatory_column_keyword][i]).strip()
+
+            long = long.replace("°", " ")
+
+            lat = lat.replace("°", " ")
+
+            p = Point('''{lat} {long}'''.format(lat=lat, long=long))
+            # print(observatory, p.format_decimal)
+
+            latitude, longitude, altitude = p
+
+            folium.Marker([latitude, longitude], popup=observatory).add_to(m)
+
+        locations = self.read_kml(kml_file)
+
+        folium.PolyLine(locations['Body shadow limit2'], popup="Body shadow upper limit").add_to(m)
+        folium.PolyLine(locations['Body shadow limit'], popup="Body shadow bottom limit").add_to(m)
+        folium.PolyLine(locations['Center of shadow'], popup="Center of shadow", color='green').add_to(m)
+        folium.PolyLine(locations['Uncertainty'], popup="Uncertainty", color='red',
+                        dash_array='10').add_to(m)
+
+        if save_map:
+            path_name, ext = os.path.splitext(location_file)
+            m.save('{}.html'.format(path_name))
+
+        return m
