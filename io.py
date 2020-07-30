@@ -20,6 +20,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
+import requests, json
 
 class FileOps:
 
@@ -254,34 +255,137 @@ class FileOps:
 
         return ctx
 
-    def pts_to_sch(self, host, user, passwd,
-                   out_file_path="./", delimiter=","):
+
+    def pts_to_sch_files(self, project_term=None,
+                   key=None,
+                   out_file_path="./"):
         """
-        Reads object list and creates sch_files.
-        @param csv_file: Text file name and path
-        @type csv_file: str
-        @return: file
+        Returns all objects from TUG PTS by project term.
+            Parameters
+            ----------
+            project_term: str
+                Robotic T60 Telescope project term.
+            key: str
+                API key.
+            out_file_path: str
+                Out file path.
+            Returns
+            -------
+            'Talon sch files'
+            Example:
+            -------
         """
 
-        """
-        
-        mydb = mysOAql.connector.connect(
-            host="localhost",
-            user="yourusername",
-            passwd="yourpassword"
-        )
-        """
+        api_uri = "http://api.pts.tug.tubitak.gov.tr/v1/t60/projects/terms/{project_term}".format(
+            project_term=project_term)
+        headers = {
+            'Content-Type': 'application/json',
+            'PTS-API-KEY': str(key)
+        }
+        try:
+            data = requests.get(api_uri, headers=headers, timeout=1)
+            if (data.status_code != 200):
+                pass
+        except requests.exceptions.RequestException:
+            pass
+        except requests.exceptions.HTTPError as e:
+            return e
+        except requests.exceptions.ConnectionError as e:
+            return e
+        except requests.exceptions.Timeout as e:
+            return e
 
-        print(mydb)
+        projects = data.json()['content']
 
-        objects = self.read_table_as_array(csv_file, delimiter=",")
-        filters_in_wheel = ["C", "U", "B", "V", "R", "I",
-                            "u", "g", "r", "i", "z", "H-alpha", "H-beta"]
+        print(projects)
 
-        for object in objects:
-            aco = AstCalc()
+        pts_ak_score_dict = {}
+        for project in projects:
+            # print(project['parent_id'], float(project['ak_score']))
+            if project['parent_id'] == str(0):
+                pid = project['id']
+            else:
+                pid = project['parent_id']
+            pts_ak_score_dict[pid] = float(project['ak_score'])
 
-            pid = object[0]
+        pts_ak_score_dict = {k: v for k, v in sorted(pts_ak_score_dict.items(), key=lambda item: item[1], reverse=True)}
+
+        priority_dict = {}
+        counter = 0
+        ak_score_check = None
+        for pid, ak_score in pts_ak_score_dict.items():
+            if ak_score_check != ak_score:
+                counter += 1
+            priority_dict[pid] = counter
+            ak_score_check = pid
+
+        # print (pts_ak_score_dict)
+        # print(priority_dict)
+
+        for project in projects:
+            if project['parent_id'] == str(0):
+                pid = project['id']
+            else:
+                pid = project['parent_id']
+
+            objects = project['objects']
+
+            for object in objects:
+                target_name = object['name'].replace(".", "_")
+                target_name = target_name.replace("+", "_")
+                target_name = target_name.replace("-", "_")
+                target_name = target_name.replace("V*", "")
+                ra = object['ra']
+                dec = object['dec']
+
+                if "-" not in dec[0]:
+                    if "+" not in dec[0]:
+                        dec = "+" + object['dec']
+
+                subsets = []
+                durations = []
+
+                filter_names = object['filter_names']
+                pts_durations = object['durations']
+                for fw in filter_names:
+                    fw_index = filter_names.index(fw)
+                    if float(pts_durations[fw_index]) > 0:
+                        duration = pts_durations[fw_index]
+
+                        if "u" in fw:
+                            fw = "1"
+                        elif "g" in fw:
+                            fw = "2"
+                        elif "r" in fw:
+                            fw = "3"
+                        elif "i" in fw:
+                            fw = "4"
+                        elif "H-alpha" in fw:
+                            fw = "H"
+                        elif "z" in fw:
+                            fw = "5"
+
+                        subsets.append(fw)
+
+                        durations.append(str(duration))
+
+                priority = priority_dict[pid]
+                repeat = object['repeat']
+
+                print(pid, target_name, ra, dec, ",".join(
+                    subsets), ",".join(durations), str(priority), str(repeat))
+
+                self.create_sch_file(out_file_path=out_file_path,
+                                     pid=pid,
+                                     target_name=target_name,
+                                     ra=ra,
+                                     dec=dec,
+                                     subsets=",".join(subsets),
+                                     durations=",".join(durations),
+                                     priority=str(priority),
+                                     repeat=str(repeat))
+        return True
+
 
     def csv_to_sch_files(self, csv_file, out_file_path="./", delimiter=",",
                          priority=[]):
@@ -1121,7 +1225,7 @@ BLOCKREPEAT = 1
     def create_occultation_map(self,
                                location_file,
                                kml_file,
-                               sep="&", header=0,
+                               sep="|", header=0,
                                observatory_column_keyword="Observatory",
                                latitude_column_keyword="Latitude",
                                longitude_column_keyword="Longitude", save_map=False):
