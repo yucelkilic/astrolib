@@ -297,12 +297,12 @@ class FileOps:
 
         projects = data.json()['content']
 
-        print(projects)
+        # print(projects)
 
         pts_ak_score_dict = {}
         for project in projects:
             # print(project['parent_id'], float(project['ak_score']))
-            if project['parent_id'] == str(0):
+            if project['parent_id'] == 0:
                 pid = project['id']
             else:
                 pid = project['parent_id']
@@ -317,13 +317,13 @@ class FileOps:
             if ak_score_check != ak_score:
                 counter += 1
             priority_dict[pid] = counter
-            ak_score_check = pid
+            ak_score_check = ak_score
 
-        # print (pts_ak_score_dict)
-        # print(priority_dict)
+        print (pts_ak_score_dict)
+        print(priority_dict)
 
         for project in projects:
-            if project['parent_id'] == str(0):
+            if project['parent_id'] == 0:
                 pid = project['id']
             else:
                 pid = project['parent_id']
