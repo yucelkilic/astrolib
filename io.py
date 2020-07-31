@@ -120,7 +120,8 @@ class FileOps:
             print(e)
             return False
 
-    def print_sch_file(self, schs_path, dT=60, dF=4, dS=6, email_format=True, email_to=None, project_term=None):
+    def print_sch_file(self, schs_path, dT=60, dF=4, dS=6, email_format=True,
+                       pi_name=None, pi_surname=None, email_to=None, project_term=None):
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
@@ -132,7 +133,11 @@ class FileOps:
         @param dS: Time consumed in downloading the frame from CCD
         @type float
         @param email_format: Print e-mail format
+        @type str
+        @param pi_name: PI name
         @type float
+        @param pi_surname: PI surname
+        @type str
         @param email_to: Email to content
         @type string
         @param project_term: Project term
@@ -147,12 +152,26 @@ class FileOps:
         exposures = []
         filters = []
 
+        filter_dict = {"U": "U",
+                       "B": "B",
+                       "V": "V",
+                       "R": "R",
+                       "I": "I",
+                       "C": "C",
+                       "1": "u'",
+                       "2": "g'",
+                       "3": "r'",
+                       "4": "i'",
+                       "5": "z'",
+                       "H": "H-alpha",}
+
         for file_name in sch_files:
             sch_dict = self.read_sch_file(file_name)
 
             filter_and_durations = []
             durations = 0
             for i, filter in enumerate(sch_dict['FILTER']):
+                filter = filter_dict[filter]
                 filter_and_durations.append(
                     "{0}({1})".format(filter, sch_dict['DURATION'][i]))
                 try:
@@ -165,7 +184,6 @@ class FileOps:
                     exposures.append(0)
 
                 filters.append(sch_dict['FILTER'][i])
-
             total_exposure_time.append(durations * float(sch_dict['REPEAT']))
             total_observation_time.append(
                 dT + (float(sch_dict['REPEAT']) * len(sch_dict['FILTER']) * (dF + dS)) +
@@ -178,13 +196,30 @@ class FileOps:
 
         project_proper_np = np.asarray(project_proper)
 
-        project_proper_tbl = Table(project_proper_np, names=('source',
-                                                             'ra',
-                                                             'dec',
-                                                             'filter',
-                                                             'repeat'))
+        project_proper_tbl = Table(project_proper_np, names=('Nesne',
+                                                             'RA',
+                                                             'Dec',
+                                                             'Filtre',
+                                                             'Tekrar'))
+        project_proper_tbl['Nesne'].unit = ''
+        project_proper_tbl['RA'].unit = 'HH:MM:SS'
+        project_proper_tbl['Dec'].unit = 'DD:MM:SS'
+        project_proper_tbl['Filtre'].unit = 's'
+        project_proper_tbl['Tekrar'].unit = 'cnt'
+
+        project_proper_tbl = "".join(project_proper_tbl.pformat(html=True, max_lines=32, max_width=-1, align="<")).replace("table",
+                                                                                                      'table cellspacing="0" cellpadding="6" border="1"')
+
         used_filters = sorted(set(filters))
-        ctx = ""
+        # used_filters = ''
+
+        if '' in used_filters:
+            note = "Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. " \
+                   "Lütfen en kısa sürede talep ettiğiniz filtre/poz sürelerini iletiniz."
+            note += "<br>"
+        else:
+            note = ""
+
         if email_format is True:
             if project_term is not None:
                 if "A" in project_term:
@@ -196,64 +231,72 @@ class FileOps:
                 elif "D" in project_term:
                     project_term = project_term + " (Kasım - Ocak)"
 
-                ctx = "Değerli Araştırmacımız,\n" \
-                      "\n" \
-                      "Robotik T60 Teleskobu'nda {} döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde " \
-                      "aşağıdaki gibi kayıtlıdır. Herhangi bir düzeltme talebinizin olmaması durumunda gözlemleriniz " \
-                      "bu şekilde gerçekleştirilecektir.".format(project_term)
+                message = "<strong>{pid}</strong> nolu projeniz kapsamında, <strong>{project_term}</strong> ".format(
+                    pid=pid,
+                    project_term=project_term)
+                message += "döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde aşağıdaki gibi kayıtlıdır. " \
+                           "Herhangi bir düzeltme talebinizin olmaması durumunda " \
+                           "gözlemleriniz bu şekilde gerçekleştirilecektir."
             else:
-                ctx = "Değerli Araştırmacımız,\n" \
-                      "\n" \
-                      "Talep ettiğiniz değişiklik sisteme aşağıdaki gibi uygulanmıştır."
-            ctx += "\n"
-            ctx += "\n"
-            ctx += colored("Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.", 'red')
-            ctx += "\n"
-            ctx += "\n"
+                message = "Talep ettiğiniz değişiklik sisteme aşağıdaki gibi uygulanmıştır."
 
-        ctx += "Kullanılan filtreler: {0}".format(used_filters)
-        ctx += "\n"
-        ctx += "Kullanılan poz süreleri: {0}".format(sorted(set(exposures)))
-        ctx += "\n"
-        ctx += "Toplam poz süresi: {0} s".format(sum(total_exposure_time))
-        ctx += "\n"
-        ctx += "Toplam gözlem zamanı: {0} s".format(
-            sum(total_observation_time))
-        ctx += "\n"
-        ctx += "Toplam nesne sayısı : {0}".format(len(project_proper_tbl))
-        ctx += "\n"
-
-        project_proper_tbl['source'].unit = ''
-        project_proper_tbl['ra'].unit = 'HH:MM:SS'
-        project_proper_tbl['dec'].unit = 'DD:MM:SS'
-        project_proper_tbl['filter'].unit = 's'
-        project_proper_tbl['repeat'].unit = 'cnt'
-
-        ctx += "\n"
-        ctx += str(project_proper_tbl)
-
-        if '' in used_filters:
-            ctx += "\n"
-            ctx += "\n"
-            ctx += colored("Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. "
-                           "Lütfen en kısa sürede talep ettiğiniz filtre/poz sürelerini iletiniz.", 'red')
-
-        if email_format is True:
-            ctx += "\n"
-            ctx += "\n"
-            ctx += "İyi çalışmalar dileriz."
-            ctx += "\n"
-            ctx += "\n"
-            ctx += "TÜBİTAK Ulusal Gözlemevi (TUG) - Robotik T60 Teleskobu - © {0}".format(datetime.today().year)
+            html = """\
+                        <html>
+                            <body>
+                            <div style="margin-left: 1em">
+                                <p>
+                                    Sayın <strong>{pi_name} {pi_surname}</strong>,<br><br>
+    
+                                    {message}
+                                    <p style="color:red">
+                                        <br>
+                                        Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.
+                                    </p>
+                                </p>
+                                Toplam nesne sayısı: <strong>{total_object_count}</strong>.
+                                <br>
+                                Toplam poz süresi: <strong>{total_exposure_time}</strong> saniye.
+                                <br>
+                                Toplam gözlem zamanı: <strong>{total_observation_time}</strong> saniye.
+                                <br><br>
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        {project_table}
+                                    </div>
+                                </div>
+                                <p style="color:red">
+                                    {note}
+                                </p>
+                                <p>
+                                    Bilgilerinize sunar,
+                                    <br>
+                                    İyi çalışmalar dileriz.
+                                    <br><br>
+                                </p>
+                                TÜBİTAK Ulusal Gözlemevi (TUG) - Robotik T60 Gözlem Kontrol Sistemi (v2.0-beta) - © {year}
+                                <br>
+                            </div>
+                    </body>
+                </html>
+        """.format(
+                pi_name=pi_name,
+                pi_surname=pi_surname,
+                message=message,
+                total_exposure_time=sum(total_exposure_time),
+                total_observation_time=sum(total_observation_time),
+                total_object_count=len(project_proper_np),
+                project_table=project_proper_tbl,
+                note=note,
+                year=datetime.today().year)
 
             if email_to is not None:
                 self.send_email(receivers=[email_to],
                                 subject="TUG Robotik T60 Teleskobu {0} Dönemi Nesne Kontrol Talebi - {1}".format(
                                     project_term,
                                     pid),
-                                content=ctx)
+                                content=html)
 
-        return ctx
+        return html
 
 
     def pts_to_sch_files(self, project_term=None,
