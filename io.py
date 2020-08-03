@@ -298,6 +298,56 @@ class FileOps:
 
         return html
 
+    def list_all_exposures(self, schs_path):
+        """
+        Reads text file into numpy array.
+        @param schs_path: SCH files path
+        @type schs_path: str
+        @return: list
+        """
+
+        sch_files = sorted(glob.glob("{0}/*.sch".format(schs_path)))
+        project_proper = []
+        total_exposure_time = []
+        total_observation_time = []
+        exposures = []
+        filters = []
+
+        filter_dict = {"U": "U",
+                       "B": "B",
+                       "V": "V",
+                       "R": "R",
+                       "I": "I",
+                       "C": "C",
+                       "1": "u'",
+                       "2": "g'",
+                       "3": "r'",
+                       "4": "i'",
+                       "5": "z'",
+                       "H": "H-alpha", }
+
+        for file_name in sch_files:
+            sch_dict = self.read_sch_file(file_name)
+
+            filter_and_durations = []
+            durations = 0
+            for i, filter in enumerate(sch_dict['FILTER']):
+                filter = filter_dict[filter]
+                filter_and_durations.append(
+                    "{0}({1})".format(filter, sch_dict['DURATION'][i]))
+                try:
+                    durations += float(sch_dict['DURATION'][i])
+                except ValueError:
+                    durations += 0
+                try:
+                    exposures.append(float(sch_dict['DURATION'][i]))
+                except ValueError:
+                    exposures.append(0)
+
+                filters.append(sch_dict['FILTER'][i])
+
+        return sorted(set(filters)), sorted(set(exposures))
+
 
     def pts_to_sch_files(self, project_term=None,
                    key=None,
