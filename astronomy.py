@@ -271,7 +271,6 @@ class AstCalc:
         ret = coor1.separation(coor2)
         return(min_dist <= ret.arcsecond <= max_dist)
 
-
     def mag2flux(self, mag, merr=None, exptime=None):
 
         """
@@ -293,9 +292,9 @@ class AstCalc:
 
         if merr is not None:
             if exptime is None:
-                fluxerr = math.pow(10, -0.4 * float(merr))
+                fluxerr = float(merr) * 100
             else:
-                fluxerr = math.pow(10, -0.4 * float(merr)) / float(exptime)
+                fluxerr = float(merr) * 100 / float(exptime)
         else:
             fluxerr = 0
 
