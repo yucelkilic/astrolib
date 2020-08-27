@@ -295,7 +295,7 @@ class AstCalc:
             if exptime is None:
                 fluxerr = math.pow(10, -0.4 * float(merr))
             else:
-                fluxerr = math.pow(10, -0.4 * mefloat(merr)) / float(exptime)
+                fluxerr = math.pow(10, -0.4 * float(merr)) / float(exptime)
         else:
             fluxerr = 0
 
