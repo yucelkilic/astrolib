@@ -8,6 +8,7 @@ import astropy.io.fits as fits
 from astropy.constants import c
 from astropy.time import Time
 from astropy import stats
+from astropy.io import ascii
 from .io import FileOps
 from .astronomy import FitsOps
 from .astronomy import TimeOps
@@ -23,8 +24,8 @@ from astropy.wcs import WCS
 
 import matplotlib.gridspec as gridspec
 import matplotlib.lines as mlines
-from sklearn.preprocessing import Imputer
-
+import matplotlib.pyplot as plt
+from sklearn.impute import SimpleImputer
 
 from sklearn import linear_model, datasets
 from pylab import rcParams
@@ -33,7 +34,7 @@ from datetime import datetime
 
 import os
 
-
+import warnings
 with warnings.catch_warnings():
    warnings.simplefilter("ignore")
    import aplpy
@@ -90,7 +91,9 @@ class Query:
                       catalogue='I/345/gaia2',
                       filter=None,
                       phot_object={None},
-                      plot=False):
+                      phot_method="MAG_APER",                      
+                      plot=False,
+                      catalog_output=False):
         """
         Basic circular aperture photometry of given images.
         Parameters
@@ -138,14 +141,44 @@ class Query:
             plot=True)
         """
         fo = FitsOps(file_name)
+        object_name = fo.get_header("OBJECT")
+        exptime = fo.get_header("EXPTIME")
+        telescope = fo.get_header("TELESCOP")
+
+        if filter is None:
+            filter = fo.get_header("FILTER")
+
+            if "T100" in telescope:
+                if "u" in filter:
+                    filter = "upmag"
+                elif "g" in filter:
+                    filter = "gpmag"
+                elif "r" in filter:
+                    filter = "rpmag"
+                elif "i" in filter:
+                    filter = "ipmag"
+                elif "z" in filter:
+                    filter = "zpmag"
+                elif "U" in filter:
+                    filter = "Umag"
+                elif "B" in filter:
+                    filter = "Bmag"
+                elif "V" in filter:
+                    filter = "Vmag"
+                elif "R" in filter:
+                    filter = "Rmag"
+                elif "I" in filter:
+                    filter = "Imag"
+
         ds = fo.source_extract()
 
         table = XMatch.query(cat1=ds,
                              cat2='vizier:{}'.format(catalogue),
                              max_distance=5 * u.arcsec, colRA1=ra_keyword,
                              colDec1=dec_keyword)
+        # print(table.colnames)
 
-        table['deltaMag'] = table[filter] - table['MAG_AUTO']
+        table['deltaMag'] = table[filter] - table["MAG_APER"]
 
         mean, median, stddev = stats.sigma_clipped_stats(table['deltaMag'], sigma=2, maxiters=5)
 
@@ -156,9 +189,9 @@ class Query:
         linear_calibrated_mag = []
         ransac_calibrated_mag = []
 
-        X = np.asarray(table['MAG_AUTO']).reshape(-1, 1)
+        X = np.log10(np.asarray(table[phot_method]).reshape(-1, 1))
         y_ = np.asarray(table[filter]).reshape(-1, 1)
-        imputer = Imputer()
+        imputer = SimpleImputer()
         y = imputer.fit_transform(y_)
 
         # Fit line using all data
@@ -177,9 +210,9 @@ class Query:
         line_y_ransac = ransac.predict(line_X)
 
         # Compare estimated coefficients
-        linear_zero_point = lr.intercept_
-        linear_r2 = lr.coef_
-        ransac_r2 = ransac.estimator_.coef_
+        # linear_zero_point = lr.intercept_
+        # linear_slope = lr.coef_
+        ransac_slope = ransac.estimator_.coef_
         ransac_zero_point = ransac.estimator_.intercept_
 
         if phot_object is not None:
@@ -194,35 +227,48 @@ class Query:
                 sep_constraint = d2d < max_sep
                 to_be_calibrated_table = ds[idx]
 
-                linear_calibrated_mag.append(
-                    lr.predict(np.asarray(to_be_calibrated_table['MAG_AUTO']).reshape(-1, 1)))
+                # linear_calibrated_mag.append(
+                #     lr.predict(np.asarray(to_be_calibrated_table[phot_method]).reshape(-1, 1)))
                 ransac_calibrated_mag.append(
-                    ransac.predict(np.asarray(to_be_calibrated_table['MAG_AUTO']).reshape(-1, 1)))
+                    ransac.predict(np.asarray(to_be_calibrated_table[phot_method]).reshape(-1, 1)))
+        else:
+            linear_calibrated_mag = [None]
+            ransac_calibrated_mag = [None]
 
         if plot is True:
             lw = 2
-            rcParams['figure.figsize'] = 16, 10
+            rcParams['figure.figsize'] = 8, 8
             plt.scatter(X[inlier_mask], y[inlier_mask], color='yellowgreen', marker='.',
                         label='Inliers')
             plt.scatter(X[outlier_mask], y[outlier_mask], color='gold', marker='.',
                         label='Outliers')
-            plt.plot(line_X, line_y, color='navy', linewidth=lw, label='Linear regressor')
+            # plt.plot(line_X, line_y, color='navy', linewidth=lw, label='Linear regressor')
             plt.plot(line_X, line_y_ransac, color='cornflowerblue', linewidth=lw,
                      label='RANSAC regressor')
             plt.legend(loc='lower right')
-            plt.xlabel("MAG_AUTO")
+            plt.title('{} ({} - {}), {} seconds'.format(object_name, catalogue, filter, exptime))
+            plt.xlabel(phot_method + " (log)")
             plt.ylabel(filter)
+            # plt.xscale('log')
             plt.show()
+                        
+        if catalog_output is True:
+            cat_file = os.path.splitext(file_name)[0]
+            np.savetxt("{}_ransac_inst_vs_cat.csv".format(cat_file), np.concatenate((X[inlier_mask], y[inlier_mask]), axis=1), delimiter=",")
+            ascii.write(table, "{}.csv".format(cat_file), format='csv', fast_writer=False)  
 
-        return ({'table': table,
+        return ({'table': table[phot_method, "MAGERR_APER", filter],
                  'astropy_zero_point': median,
-                 'linear_zero_point': linear_zero_point[0],
+                 # 'linear_zero_point': linear_zero_point[0],
                  'ransac_zero_point': ransac_zero_point[0],
-                 'linear_r2': linear_r2[0][0],
-                 'ransac_r2': ransac_r2[0][0],
+                 # 'linear_slope': linear_slope[0][0],
+                 'ransac_slope': ransac_slope[0][0],        
                  'stddev': stddev,
-                 'linear_calibrated_mag': linear_calibrated_mag[0],
-                 'ransac_calibrated_mag': ransac_calibrated_mag[0]})
+                 # 'linear_calibrated_mag': linear_calibrated_mag[0],
+                 'ransac_calibrated_mag': ransac_calibrated_mag[0],
+                 # 'linear_equation': "{}X + {}".format(linear_slope[0][0], linear_zero_point[0]),
+                 'ransac_equation': "{}X + {}".format(ransac_slope[0][0], ransac_zero_point[0])
+                 })
 
     def match_gaia_catalog(self, file_name, radius=0.002, max_mag=20,
                            max_sources=30, plot=False):

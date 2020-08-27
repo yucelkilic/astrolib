@@ -6,6 +6,9 @@ import pandas as pd
 import paramiko
 import os
 import sqlite3
+import folium
+from geopy.point import Point
+from fastkml.kml import KML
 from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
@@ -17,6 +20,7 @@ import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
+import requests, json
 
 class FileOps:
 
@@ -116,7 +120,8 @@ class FileOps:
             print(e)
             return False
 
-    def print_sch_file(self, schs_path, dT=60, dF=4, dS=6, email_format=True, email_to=None, project_term=None):
+    def print_sch_file(self, schs_path, dT=60, dF=4, dS=6, email_format=True,
+                       pi_name=None, pi_surname=None, email_to=None, project_term=None):
         """
         Reads text file into numpy array.
         @param file_name: Text file name and path
@@ -128,7 +133,11 @@ class FileOps:
         @param dS: Time consumed in downloading the frame from CCD
         @type float
         @param email_format: Print e-mail format
+        @type str
+        @param pi_name: PI name
         @type float
+        @param pi_surname: PI surname
+        @type str
         @param email_to: Email to content
         @type string
         @param project_term: Project term
@@ -143,12 +152,187 @@ class FileOps:
         exposures = []
         filters = []
 
+        filter_dict = {"U": "U",
+                       "B": "B",
+                       "V": "V",
+                       "R": "R",
+                       "I": "I",
+                       "C": "C",
+                       "1": "u'",
+                       "2": "g'",
+                       "3": "r'",
+                       "4": "i'",
+                       "5": "z'",
+                       "H": "H-alpha",}
+
         for file_name in sch_files:
             sch_dict = self.read_sch_file(file_name)
 
             filter_and_durations = []
             durations = 0
             for i, filter in enumerate(sch_dict['FILTER']):
+                filter = filter_dict[filter]
+                filter_and_durations.append(
+                    "{0}({1})".format(filter, sch_dict['DURATION'][i]))
+                try:
+                    durations += float(sch_dict['DURATION'][i])
+                except ValueError:
+                    durations += 0
+                try:
+                    exposures.append(float(sch_dict['DURATION'][i]))
+                except ValueError:
+                    exposures.append(0)
+
+                filters.append(sch_dict['FILTER'][i])
+            total_exposure_time.append(durations * float(sch_dict['REPEAT']))
+            total_observation_time.append(
+                dT + (float(sch_dict['REPEAT']) * len(sch_dict['FILTER']) * (dF + dS)) +
+                (float(sch_dict['REPEAT']) * durations))
+
+            project_proper.append([sch_dict['SOURCE'], sch_dict['RA'], sch_dict['DEC'], " ".join(filter_and_durations),
+                                   sch_dict['REPEAT']])
+
+        pid = str(sch_dict['SOURCE']).split("_")[0]
+
+        project_proper_np = np.asarray(project_proper)
+
+        project_proper_tbl = Table(project_proper_np, names=('Nesne',
+                                                             'RA',
+                                                             'Dec',
+                                                             'Filtre',
+                                                             'Tekrar'))
+        project_proper_tbl['Nesne'].unit = ''
+        project_proper_tbl['RA'].unit = 'HH:MM:SS'
+        project_proper_tbl['Dec'].unit = 'DD:MM:SS'
+        project_proper_tbl['Filtre'].unit = 's'
+        project_proper_tbl['Tekrar'].unit = 'cnt'
+
+        project_proper_tbl = "".join(project_proper_tbl.pformat(html=True, max_lines=32, max_width=-1, align="<")).replace("table",
+                                                                                                      'table cellspacing="0" cellpadding="6" border="1"')
+
+        used_filters = sorted(set(filters))
+        # used_filters = ''
+
+        if '' in used_filters:
+            note = "Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. " \
+                   "Lütfen en kısa sürede talep ettiğiniz filtre/poz sürelerini iletiniz."
+            note += "<br>"
+        else:
+            note = ""
+
+        if email_format is True:
+            if project_term is not None:
+                if "A" in project_term:
+                    project_term = project_term + " (Şubat - Nisan)"
+                elif "B" in project_term:
+                    project_term = project_term + " (Mayıs - Temmuz)"
+                elif "C" in project_term:
+                    project_term = project_term + " (Ağustos - Ekim)"
+                elif "D" in project_term:
+                    project_term = project_term + " (Kasım - Ocak)"
+
+                message = "<strong>{pid}</strong> nolu projeniz kapsamında, <strong>{project_term}</strong> ".format(
+                    pid=pid,
+                    project_term=project_term)
+                message += "döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde aşağıdaki gibi kayıtlıdır. " \
+                           "Herhangi bir düzeltme talebinizin olmaması durumunda " \
+                           "gözlemleriniz bu şekilde gerçekleştirilecektir."
+            else:
+                message = "Talep ettiğiniz değişiklik sisteme aşağıdaki gibi uygulanmıştır."
+
+            html = """\
+                        <html>
+                            <body>
+                            <div style="margin-left: 1em">
+                                <p>
+                                    Sayın <strong>{pi_name} {pi_surname}</strong>,<br><br>
+    
+                                    {message}
+                                    <p style="color:red">
+                                        <br>
+                                        Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.
+                                    </p>
+                                </p>
+                                Toplam nesne sayısı: <strong>{total_object_count}</strong>.
+                                <br>
+                                Toplam poz süresi: <strong>{total_exposure_time}</strong> saniye.
+                                <br>
+                                Toplam gözlem zamanı: <strong>{total_observation_time}</strong> saniye.
+                                <br><br>
+                                <div class="row">
+                                    <div class="col-md-5">
+                                        {project_table}
+                                    </div>
+                                </div>
+                                <p style="color:red">
+                                    {note}
+                                </p>
+                                <p>
+                                    Bilgilerinize sunar,
+                                    <br>
+                                    İyi çalışmalar dileriz.
+                                    <br><br>
+                                </p>
+                                TÜBİTAK Ulusal Gözlemevi (TUG) - Robotik T60 Gözlem Kontrol Sistemi (v2.0-beta) - © {year}
+                                <br>
+                            </div>
+                    </body>
+                </html>
+        """.format(
+                pi_name=pi_name,
+                pi_surname=pi_surname,
+                message=message,
+                total_exposure_time=sum(total_exposure_time),
+                total_observation_time=sum(total_observation_time),
+                total_object_count=len(project_proper_np),
+                project_table=project_proper_tbl,
+                note=note,
+                year=datetime.today().year)
+
+            if email_to is not None:
+                self.send_email(receivers=[email_to],
+                                subject="TUG Robotik T60 Teleskobu {0} Dönemi Nesne Kontrol Talebi - {1}".format(
+                                    project_term,
+                                    pid),
+                                content=html)
+
+        return html
+
+    def list_all_exposures(self, schs_path):
+        """
+        Reads text file into numpy array.
+        @param schs_path: SCH files path
+        @type schs_path: str
+        @return: list
+        """
+
+        sch_files = sorted(glob.glob("{0}/*.sch".format(schs_path)))
+        project_proper = []
+        total_exposure_time = []
+        total_observation_time = []
+        exposures = []
+        filters = []
+
+        filter_dict = {"U": "U",
+                       "B": "B",
+                       "V": "V",
+                       "R": "R",
+                       "I": "I",
+                       "C": "C",
+                       "1": "u'",
+                       "2": "g'",
+                       "3": "r'",
+                       "4": "i'",
+                       "5": "z'",
+                       "H": "H-alpha", }
+
+        for file_name in sch_files:
+            sch_dict = self.read_sch_file(file_name)
+
+            filter_and_durations = []
+            durations = 0
+            for i, filter in enumerate(sch_dict['FILTER']):
+                filter = filter_dict[filter]
                 filter_and_durations.append(
                     "{0}({1})".format(filter, sch_dict['DURATION'][i]))
                 try:
@@ -162,123 +346,139 @@ class FileOps:
 
                 filters.append(sch_dict['FILTER'][i])
 
-            total_exposure_time.append(durations * float(sch_dict['REPEAT']))
-            total_observation_time.append(
-                dT + (float(sch_dict['REPEAT']) * len(sch_dict['FILTER']) * (dF + dS)) +
-                (float(sch_dict['REPEAT']) * durations))
+        return sorted(set(filters)), sorted(set(exposures))
 
-            project_proper.append([sch_dict['SOURCE'], sch_dict['RA'], sch_dict['DEC'], " ".join(filter_and_durations),
-                                   sch_dict['REPEAT']])
 
-        pid = str(sch_dict['SOURCE']).split("_")[0]
+    def pts_to_sch_files(self, project_term=None,
+                   key=None,
+                   out_file_path="./"):
+        """
+        Returns all objects from TUG PTS by project term.
+            Parameters
+            ----------
+            project_term: str
+                Robotic T60 Telescope project term.
+            key: str
+                API key.
+            out_file_path: str
+                Out file path.
+            Returns
+            -------
+            'Talon sch files'
+            Example:
+            -------
+        """
 
-        project_proper_np = np.asarray(project_proper)
+        api_uri = "http://api.pts.tug.tubitak.gov.tr/v1/t60/projects/terms/{project_term}".format(
+            project_term=project_term)
+        headers = {
+            'Content-Type': 'application/json',
+            'PTS-API-KEY': str(key)
+        }
+        try:
+            data = requests.get(api_uri, headers=headers, timeout=1)
+            if (data.status_code != 200):
+                pass
+        except requests.exceptions.RequestException:
+            pass
+        except requests.exceptions.HTTPError as e:
+            return e
+        except requests.exceptions.ConnectionError as e:
+            return e
+        except requests.exceptions.Timeout as e:
+            return e
 
-        project_proper_tbl = Table(project_proper_np, names=('source',
-                                                             'ra',
-                                                             'dec',
-                                                             'filter',
-                                                             'repeat'))
-        used_filters = sorted(set(filters))
-        ctx = ""
-        if email_format is True:
-            if project_term is not None:
-                if "A" in project_term:
-                    project_term = project_term + " (Şubat - Nisan)"
-                elif "B" in project_term:
-                    project_term = project_term + " (Mayıs - Temmuz)"
-                elif "C" in project_term:
-                    project_term = project_term + " (Ağustos - Ekim)"
-                elif "D" in project_term:
-                    project_term = project_term + " (Kasım - Ocak)"
+        projects = data.json()['content']
 
-                ctx = "Değerli Araştırmacımız,\n" \
-                      "\n" \
-                      "Robotik T60 Teleskobu'nda {} döneminde gözlenecek olan nesneleriniz TUG PTS sisteminde " \
-                      "aşağıdaki gibi kayıtlıdır. Herhangi bir düzeltme talebinizin olmaması durumunda gözlemleriniz " \
-                      "bu şekilde gerçekleştirilecektir.".format(project_term)
+        # print(projects)
+
+        pts_ak_score_dict = {}
+        for project in projects:
+            # print(project['parent_id'], float(project['ak_score']))
+            if project['parent_id'] == 0:
+                pid = project['id']
             else:
-                ctx = "Değerli Araştırmacımız,\n" \
-                      "\n" \
-                      "Talep ettiğiniz değişiklik sisteme aşağıdaki gibi uygulanmıştır."
-            ctx += "\n"
-            ctx += "\n"
-            ctx += colored("Sistemde bir uyumsuzluk olduğunu düşünüyorsanız lütfen bildiriniz.", 'red')
-            ctx += "\n"
-            ctx += "\n"
+                pid = project['parent_id']
+            pts_ak_score_dict[pid] = float(project['ak_score'])
 
-        ctx += "Kullanılan filtreler: {0}".format(used_filters)
-        ctx += "\n"
-        ctx += "Kullanılan poz süreleri: {0}".format(sorted(set(exposures)))
-        ctx += "\n"
-        ctx += "Toplam poz süresi: {0} s".format(sum(total_exposure_time))
-        ctx += "\n"
-        ctx += "Toplam gözlem zamanı: {0} s".format(
-            sum(total_observation_time))
-        ctx += "\n"
-        ctx += "Toplam nesne sayısı : {0}".format(len(project_proper_tbl))
-        ctx += "\n"
+        pts_ak_score_dict = {k: v for k, v in sorted(pts_ak_score_dict.items(), key=lambda item: item[1], reverse=True)}
 
-        project_proper_tbl['source'].unit = ''
-        project_proper_tbl['ra'].unit = 'HH:MM:SS'
-        project_proper_tbl['dec'].unit = 'DD:MM:SS'
-        project_proper_tbl['filter'].unit = 's'
-        project_proper_tbl['repeat'].unit = 'cnt'
+        priority_dict = {}
+        counter = 0
+        ak_score_check = None
+        for pid, ak_score in pts_ak_score_dict.items():
+            if ak_score_check != ak_score:
+                counter += 1
+            priority_dict[pid] = counter
+            ak_score_check = ak_score
 
-        ctx += "\n"
-        ctx += str(project_proper_tbl)
+        print (pts_ak_score_dict)
+        print(priority_dict)
 
-        if '' in used_filters:
-            ctx += "\n"
-            ctx += "\n"
-            ctx += colored("Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. "
-                           "Lütfen en kısa sürede talep ettiğiniz filtre/poz sürelerini iletiniz.", 'red')
+        for project in projects:
+            if project['parent_id'] == 0:
+                pid = project['id']
+            else:
+                pid = project['parent_id']
 
-        if email_format is True:
-            ctx += "\n"
-            ctx += "\n"
-            ctx += "İyi çalışmalar dileriz."
-            ctx += "\n"
-            ctx += "\n"
-            ctx += "TÜBİTAK Ulusal Gözlemevi (TUG) - Robotik T60 Teleskobu - © {0}".format(datetime.today().year)
+            objects = project['objects']
 
-            if email_to is not None:
-                self.send_email(receivers=[email_to],
-                                subject="TUG Robotik T60 Teleskobu {0} Dönemi Nesne Kontrol Talebi - {1}".format(
-                                    project_term,
-                                    pid),
-                                content=ctx)
+            for object in objects:
+                target_name = object['name'].replace(".", "_")
+                target_name = target_name.replace("+", "_")
+                target_name = target_name.replace("-", "_")
+                target_name = target_name.replace("V*", "")
+                ra = object['ra']
+                dec = object['dec']
 
-        return ctx
+                if "-" not in dec[0]:
+                    if "+" not in dec[0]:
+                        dec = "+" + object['dec']
 
-    def pts_to_sch(self, host, user, passwd,
-                   out_file_path="./", delimiter=","):
-        """
-        Reads object list and creates sch_files.
-        @param csv_file: Text file name and path
-        @type csv_file: str
-        @return: file
-        """
+                subsets = []
+                durations = []
 
-        """
-        
-        mydb = mysOAql.connector.connect(
-            host="localhost",
-            user="yourusername",
-            passwd="yourpassword"
-        )
-        """
+                filter_names = object['filter_names']
+                pts_durations = object['durations']
+                for fw in filter_names:
+                    fw_index = filter_names.index(fw)
+                    if float(pts_durations[fw_index]) > 0:
+                        duration = pts_durations[fw_index]
 
-        print(mydb)
+                        if "u" in fw:
+                            fw = "1"
+                        elif "g" in fw:
+                            fw = "2"
+                        elif "r" in fw:
+                            fw = "3"
+                        elif "i" in fw:
+                            fw = "4"
+                        elif "H-alpha" in fw:
+                            fw = "H"
+                        elif "z" in fw:
+                            fw = "5"
 
-        objects = self.read_table_as_array(csv_file, delimiter=",")
-        filters_in_wheel = ["C", "U", "B", "V", "R", "I",
-                            "u", "g", "r", "i", "z", "H-alpha", "H-beta"]
+                        subsets.append(fw)
 
-        for object in objects:
-            aco = AstCalc()
+                        durations.append(str(duration))
 
-            pid = object[0]
+                priority = priority_dict[pid]
+                repeat = object['repeat']
+
+                print(pid, target_name, ra, dec, ",".join(
+                    subsets), ",".join(durations), str(priority), str(repeat))
+
+                self.create_sch_file(out_file_path=out_file_path,
+                                     pid=pid,
+                                     target_name=target_name,
+                                     ra=ra,
+                                     dec=dec,
+                                     subsets=",".join(subsets),
+                                     durations=",".join(durations),
+                                     priority=str(priority),
+                                     repeat=str(repeat))
+        return True
+
 
     def csv_to_sch_files(self, csv_file, out_file_path="./", delimiter=",",
                          priority=[]):
@@ -1087,3 +1287,96 @@ BLOCKREPEAT = 1
         except:
             print(colored("Error: unable to send email to {0}".format(receivers[0]), "red"))
             return False
+
+    def read_kml(self, kml_file):
+        """
+        Reads KML files.
+            Parameters
+            ----------
+            fname: file object
+                KML file.
+            Returns
+            -------
+            'list'
+        """
+        kml = KML()
+        kml.from_string(open(kml_file, "rb").read())
+        points = dict()
+        pairs = []
+
+        for feature in kml.features():
+            for d_i, placemark in enumerate(feature.features()):
+                pairs = []
+                for j, k in enumerate(placemark.geometry.coords.xy[0]):
+                    pairs.append((placemark.geometry.coords.xy[1][j], k))
+                if placemark.name in points:
+                    points[placemark.name + str(d_i)] = pairs
+                else:
+                    points[placemark.name] = pairs
+        return points
+
+    def create_occultation_map(self,
+                               location_file,
+                               kml_file,
+                               sep="|", header=0,
+                               observatory_column_keyword="Observatory",
+                               latitude_column_keyword="Latitude",
+                               longitude_column_keyword="Longitude", save_map=False):
+        """
+        Creates occultation map.
+            Parameters
+            ----------
+            location_file: file object
+                Location file.
+            sep: str
+                Seperator of row data.
+            header: int
+                Row position of header for input file.
+            latitude_column_keyword: str
+                Keyword of latitude column.
+            longitude_column_keyword: str
+                Keyword of longitude column.
+            Returns
+            -------
+            'A map object'
+            Example:
+            -------
+            >>> from astrolib import io
+            >>> fo = io.FileOps()
+            >>> fo.create_occultation_map(kml_file="2002KX14_20200526_NIMAv7_LuckyStar.kmz", location_file="2002KX14_locations.txt")
+        """
+        for_map = pd.read_csv(location_file, sep=sep, header=header)
+
+        # Make an empty map
+        m = folium.Map(location=[39, 32], zoom_start=6)
+
+        # I can add marker one by one on the map
+        for i in range(0, len(for_map)):
+            long = str(for_map[longitude_column_keyword][i]).strip()
+            lat = str(for_map[latitude_column_keyword][i]).strip()
+            observatory = str(for_map[observatory_column_keyword][i]).strip()
+
+            long = long.replace("°", " ")
+
+            lat = lat.replace("°", " ")
+
+            p = Point('''{lat} {long}'''.format(lat=lat, long=long))
+            # print(observatory, p.format_decimal)
+
+            latitude, longitude, altitude = p
+
+            folium.Marker([latitude, longitude], popup=observatory).add_to(m)
+
+        locations = self.read_kml(kml_file)
+
+        folium.PolyLine(locations['Body shadow limit2'], popup="Body shadow upper limit").add_to(m)
+        folium.PolyLine(locations['Body shadow limit'], popup="Body shadow bottom limit").add_to(m)
+        folium.PolyLine(locations['Center of shadow'], popup="Center of shadow", color='green').add_to(m)
+        folium.PolyLine(locations['Uncertainty'], popup="Uncertainty", color='red',
+                        dash_array='10').add_to(m)
+
+        if save_map:
+            path_name, ext = os.path.splitext(location_file)
+            m.save('{}.html'.format(path_name))
+
+        return m
