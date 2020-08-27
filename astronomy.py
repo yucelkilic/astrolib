@@ -266,6 +266,39 @@ class AstCalc:
         ret = coor1.separation(coor2)
         return(min_dist <= ret.arcsecond <= max_dist)
 
+
+    def mag2flux(self, mag, merr=None, exptime=None):
+
+        """
+        Converts magnitude to flux.
+        @param mag: Mag.
+        @type mag: float
+        @param merr: Mag.
+        @type merr: float
+        @param exptime: Exposure time.
+        @type exptime: float
+        @return: float
+        """
+
+        # This calculation for normalize flux to exposure time
+        if exptime is None:
+            flux = math.pow(10, -0.4 * float(mag))
+        else:
+            flux = math.pow(10, -0.4 * float(mag)) / float(exptime)
+
+        if merr is not None:
+            if exptime is None:
+                fluxerr = math.pow(10, -0.4 * float(merr))
+            else:
+                fluxerr = math.pow(10, -0.4 * mefloat(merr)) / float(exptime)
+        else:
+            fluxerr = 0
+
+        if math.isinf(fluxerr):
+            fluxerr = 0
+
+        return flux, fluxerr
+
     def flux2mag(self, flux, fluxerr, exptime=None):
 
         """
