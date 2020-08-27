@@ -286,15 +286,16 @@ class AstCalc:
 
         # This calculation for normalize flux to exposure time
         if exptime is None:
-            flux = math.pow(10, -0.4 * float(mag))
+            flux = math.pow(10, abs(-0.4 * float(mag)))
         else:
-            flux = math.pow(10, -0.4 * float(mag)) / float(exptime)
+            flux = math.pow(10, abs(-0.4 * float(mag))) / float(exptime)
 
         if merr is not None:
-            if exptime is None:
-                fluxerr = float(merr) * 100
-            else:
-                fluxerr = float(merr) * 100 / float(exptime)
+                uncer = float(merr) * 100
+                try:
+                    fluxerr = flux / uncer
+                except ZeroDivisionError:
+                    fluxerr = 0
         else:
             fluxerr = 0
 
