@@ -1313,6 +1313,7 @@ BLOCKREPEAT = 1
                     points[placemark.name + str(d_i)] = pairs
                 else:
                     points[placemark.name] = pairs
+
         return points
 
     def create_occultation_map(self,
@@ -1348,7 +1349,7 @@ BLOCKREPEAT = 1
         for_map = pd.read_csv(location_file, sep=sep, header=header)
 
         # Make an empty map
-        m = folium.Map(location=[39, 32], zoom_start=6)
+        m = folium.Map(location=[39, 32], zoom_start=6, max_bounds=True)
 
         # I can add marker one by one on the map
         for i in range(0, len(for_map)):
@@ -1369,11 +1370,89 @@ BLOCKREPEAT = 1
 
         locations = self.read_kml(kml_file)
 
-        folium.PolyLine(locations['Body shadow limit2'], popup="Body shadow upper limit").add_to(m)
-        folium.PolyLine(locations['Body shadow limit'], popup="Body shadow bottom limit").add_to(m)
+        un = locations['Uncertainty']
+        bsl = locations['Body shadow limit']
+        bsl2 = locations['Body shadow limit2']
+        cs = locations['Center of shadow']
+
+
+        uns = []
+        bl = []
+        bl2 = []
+        cos = []
+
+        for u in un:
+            ulat, ulong = u
+
+            if ulat > 0:
+                if ulong < 0:
+                    ulong = ulong % 180
+                else:
+                    ulong = ulong % -180
+            else:
+                if ulong < 0:
+                    ulong = ulong % -180
+                else:
+                    ulong = ulong % +180
+
+            uns.append((ulat, ulong))
+
+        for u in bsl:
+            blat, blong = u
+            if blat > 0:
+                if blong < 0:
+                    blong = blong % 180
+                else:
+                    blong = blong % -180
+            else:
+                if blong < 0:
+                    blong = blong % -180
+                else:
+                    blong = blong % +180
+
+            bl.append((blat, blong))
+
+        for u in bsl2:
+            blat, blong = u
+            if blat > 0:
+                if blong < 0:
+                    blong = blong % 180
+                else:
+                    blong = blong % -180
+            else:
+                if blong < 0:
+                    blong = blong % -180
+                else:
+                    blong = blong % +180
+
+            bl2.append((blat, blong))
+
+        for u in cs:
+            clat, clong = u
+            if clat > 0:
+                if clong < 0:
+                    clong = clong % 180
+                else:
+                    clong = clong % -180
+            else:
+                if clong < 0:
+                    clong = clong % -180
+                else:
+                    clong = clong % +180
+
+
+            cos.append((clat, clong))
+
+
+        folium.PolyLine(bl2, popup="Body shadow upper limit").add_to(m)
+        folium.PolyLine(bl, popup="Body shadow bottom limit").add_to(m)
+        folium.PolyLine(cos, popup="Center of shadow", color='green').add_to(m)
+        folium.PolyLine(uns, popup="Uncertainty", color='red', dash_array='10').add_to(m)
+
+        folium.PolyLine(locations['Body shadow limit'], popup="Body shadow upper limit").add_to(m)
+        folium.PolyLine(locations['Body shadow limit2'], popup="Body shadow bottom limit").add_to(m)
         folium.PolyLine(locations['Center of shadow'], popup="Center of shadow", color='green').add_to(m)
-        folium.PolyLine(locations['Uncertainty'], popup="Uncertainty", color='red',
-                        dash_array='10').add_to(m)
+        folium.PolyLine(locations['Uncertainty'], popup="Uncertainty", color='red', dash_array='10').add_to(m)
 
         if save_map:
             path_name, ext = os.path.splitext(location_file)
