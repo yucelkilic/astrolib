@@ -16,6 +16,7 @@ from .astronomy import AstCalc
 import numpy as np
 import sep
 from os import system
+import math
 
 from astroquery.xmatch import XMatch
 from astroquery.skyview import SkyView
@@ -179,101 +180,103 @@ class Query:
                              cat2='vizier:{}'.format(catalogue),
                              max_distance=5 * u.arcsec, colRA1=ra_keyword,
                              colDec1=dec_keyword)
-        # print(table.colnames)
+        print(table.colnames)
 
-        if phot_method is not None:
-            table['deltaMag'] = table[filter] - table["MAG_AUTO"]
+        table['deltaMag'] = table[filter] - table[phot_method]
 
-            mean, median, stddev = stats.sigma_clipped_stats(table['deltaMag'], sigma=2, maxiters=5)
+        mean, median, stddev = stats.sigma_clipped_stats(table['deltaMag'], sigma=2, maxiters=5)
 
-            linear_zero_point = None
-            linear_r2 = None
-            ransac_r2 = None
-            ransac_zero_point = None
-            linear_calibrated_mag = []
-            ransac_calibrated_mag = []
+        linear_zero_point = None
+        linear_r2 = None
+        ransac_r2 = None
+        ransac_zero_point = None
+        linear_calibrated_mag = []
+        ransac_calibrated_mag = []
 
-            X = np.asarray(table[phot_method]).reshape(-1, 1)
-            y_ = np.asarray(table[filter]).reshape(-1, 1)
-            imputer = SimpleImputer()
-            y = imputer.fit_transform(y_)
+        if "FLUX" in phot_method:
+           X = np.log10(np.asarray(table[phot_method]).reshape(-1, 1))
+        else:
+           X = np.asarray(table[phot_method]).reshape(-1, 1)
+        y_ = np.asarray(table[filter]).reshape(-1, 1)
+        imputer = SimpleImputer()
+        y = imputer.fit_transform(y_)
 
-            # Fit line using all data
-            lr = linear_model.LinearRegression()
-            lr.fit(X, y)
+        # Fit line using all data
+        lr = linear_model.LinearRegression()
+        lr.fit(X, y)
 
-            # Robustly fit linear model with RANSAC algorithm
-            ransac = linear_model.RANSACRegressor()
-            ransac.fit(X, y)
-            inlier_mask = ransac.inlier_mask_
-            outlier_mask = np.logical_not(inlier_mask)
+        # Robustly fit linear model with RANSAC algorithm
+        ransac = linear_model.RANSACRegressor()
+        ransac.fit(X, y)
+        inlier_mask = ransac.inlier_mask_
+        outlier_mask = np.logical_not(inlier_mask)
 
-            # Predict data of estimated models
-            line_X = np.arange(X.min(), X.max())[:, np.newaxis]
-            line_y = lr.predict(line_X)
-            line_y_ransac = ransac.predict(line_X)
+        # Predict data of estimated models
+        line_X = np.arange(X.min(), X.max())[:, np.newaxis]
+        line_y = lr.predict(line_X)
+        line_y_ransac = ransac.predict(line_X)
 
-            # Compare estimated coefficients
-            # linear_zero_point = lr.intercept_
-            # linear_slope = lr.coef_
-            ransac_slope = ransac.estimator_.coef_
-            ransac_zero_point = ransac.estimator_.intercept_
+        # Compare estimated coefficients
+        # linear_zero_point = lr.intercept_
+        # linear_slope = lr.coef_
+        ransac_slope = ransac.estimator_.coef_
+        ransac_zero_point = ransac.estimator_.intercept_
 
-            if phot_object is not None:
-                phot_object[ra_keyword].unit = u.deg
-                phot_object[dec_keyword].unit = u.deg
+        if phot_object is not None:
+            phot_object[ra_keyword].unit = u.deg
+            phot_object[dec_keyword].unit = u.deg
 
-                for object in phot_object:
-                    c = coord.SkyCoord(object[ra_keyword], object[dec_keyword], frame="icrs", unit="deg")
-                    catalog = coord.SkyCoord(ds[ra_keyword], ds[dec_keyword], frame="icrs", unit="deg")
-                    max_sep = 1.0 * u.arcsec
-                    idx, d2d, d3d = c.match_to_catalog_3d(catalog)
-                    sep_constraint = d2d < max_sep
-                    to_be_calibrated_table = ds[idx]
+            for object in phot_object:
+                c = coord.SkyCoord(object[ra_keyword], object[dec_keyword], frame="icrs", unit="deg")
+                catalog = coord.SkyCoord(ds[ra_keyword], ds[dec_keyword], frame="icrs", unit="deg")
+                max_sep = 1.0 * u.arcsec
+                idx, d2d, d3d = c.match_to_catalog_3d(catalog)
+                sep_constraint = d2d < max_sep
+                to_be_calibrated_table = ds[idx]
 
-                    # linear_calibrated_mag.append(
-                    #     lr.predict(np.asarray(to_be_calibrated_table[phot_method]).reshape(-1, 1)))
-                    ransac_calibrated_mag.append(
-                        ransac.predict(np.asarray(to_be_calibrated_table[phot_method]).reshape(-1, 1)))
+                # linear_calibrated_mag.append(
+                #     lr.predict(np.asarray(to_be_calibrated_table[phot_method]).reshape(-1, 1)))
+                ransac_calibrated_mag.append(
+                    ransac.predict(np.asarray(to_be_calibrated_table[phot_method]).reshape(-1, 1)))
+        else:
+            linear_calibrated_mag = [None]
+            ransac_calibrated_mag = [None]
+
+        if plot is True:
+            lw = 2
+            rcParams['figure.figsize'] = 8, 8
+            plt.scatter(X[inlier_mask], y[inlier_mask], color='yellowgreen', marker='.',
+                        label='Inliers')
+            plt.scatter(X[outlier_mask], y[outlier_mask], color='gold', marker='.',
+                        label='Outliers')
+            # plt.plot(line_X, line_y, color='navy', linewidth=lw, label='Linear regressor')
+            plt.plot(line_X, line_y_ransac, color='cornflowerblue', linewidth=lw,
+                     label='RANSAC regressor')
+            plt.legend(loc='lower right')
+            plt.title('{} ({} - {}), {} seconds'.format(object_name, catalogue, filter, exptime))
+            if "FLUX" in phot_method:
+               plt.xlabel(phot_method + " (log)")
             else:
-                linear_calibrated_mag = [None]
-                ransac_calibrated_mag = [None]
+               plt.xlabel(phot_method)
+            plt.ylabel(filter)
+            # plt.xscale('log')
+            plt.show()
+                        
+        if catalog_output is True:
+            cat_file = os.path.splitext(file_name)[0]
+            np.savetxt("{}_ransac_inst_vs_cat.csv".format(cat_file), np.concatenate((X[inlier_mask], y[inlier_mask]), axis=1), delimiter=",")
+            ascii.write(table, "{}.csv".format(cat_file), format='csv', fast_writer=False)
 
-            if plot is True:
-                lw = 2
-                rcParams['figure.figsize'] = 8, 8
-                plt.scatter(X[inlier_mask], y[inlier_mask], color='yellowgreen', marker='.',
-                            label='Inliers')
-                plt.scatter(X[outlier_mask], y[outlier_mask], color='gold', marker='.',
-                            label='Outliers')
-                # plt.plot(line_X, line_y, color='navy', linewidth=lw, label='Linear regressor')
-                plt.plot(line_X, line_y_ransac, color='cornflowerblue', linewidth=lw,
-                         label='RANSAC regressor')
-                plt.legend(loc='lower right')
-                plt.title('{} ({} - {}), {} seconds'.format(object_name, catalogue, filter, exptime))
-                plt.xlabel(phot_method + " (log)")
-                plt.ylabel(filter)
-                # plt.xscale('log')
-                plt.show()
 
-            if catalog_output is True:
-                cat_file = os.path.splitext(file_name)[0]
-                np.savetxt("{}_ransac_inst_vs_cat.csv".format(cat_file), np.concatenate((X[inlier_mask], y[inlier_mask]), axis=1), delimiter=",")
-                ascii.write(table, "{}.csv".format(cat_file), format='csv', fast_writer=False)
+        return ({'table': table[phot_method, "MAGERR_AUTO", filter],
+                 'astropy_zero_point': median,
+                 'ransac_zero_point': ransac_zero_point[0],
+                 'ransac_slope': ransac_slope[0][0],
+                 'stddev': stddev,
+                 'ransac_calibrated_mag': str(ransac_calibrated_mag[0][0]) + "{}".format(stddev/math.sqrt(len(X[inlier_mask]))),
+                 'ransac_equation': "{}X + {}".format(ransac_slope[0][0], ransac_zero_point[0]),
+                 })
 
-            return ({'table': table[phot_method, "MAGERR_AUTO", filter],
-                     'astropy_zero_point': median,
-                     # 'linear_zero_point': linear_zero_point[0],
-                     'ransac_zero_point': ransac_zero_point[0],
-                     # 'linear_slope': linear_slope[0][0],
-                     'ransac_slope': ransac_slope[0][0],
-                     'stddev': stddev,
-                     # 'linear_calibrated_mag': linear_calibrated_mag[0],
-                     'ransac_calibrated_mag': ransac_calibrated_mag[0],
-                     # 'linear_equation': "{}X + {}".format(linear_slope[0][0], linear_zero_point[0]),
-                     'ransac_equation': "{}X + {}".format(ransac_slope[0][0], ransac_zero_point[0])
-                     })
-        return table
 
     def match_gaia_catalog(self, file_name, radius=0.002, max_mag=20,
                            max_sources=30, plot=False):
@@ -373,6 +376,7 @@ class Query:
 
         print("Matched objects:", len(tgaia_matched))
         return (tgaia_matched)
+
 
     def find_skybot_objects(self,
                             odate,
