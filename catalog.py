@@ -9,6 +9,7 @@ from astropy.constants import c
 from astropy.time import Time
 from astropy import stats
 from astropy.io import ascii
+from astroquery.jplhorizons import Horizons
 from .io import FileOps
 from .astronomy import FitsOps
 from .astronomy import TimeOps
@@ -377,6 +378,61 @@ class Query:
         print("Matched objects:", len(tgaia_matched))
         return (tgaia_matched)
 
+
+    def get_sso_ephem(self, name, epoch_start, epoch_end, epoch_step="1min", location="A84"):
+        """Instantiate JPL query.
+
+        Parameters
+        ----------
+        name : str, required
+            Name, number, or designation of the object to be queried
+        location : str or dict, optional
+            Observer's location for ephemerides queries or center body
+            name for orbital element or vector queries. Uses the same
+            codes as JPL Horizons. If no location is provided, Earth's
+            center is used for ephemerides queries and the Sun's
+            center for elements and vectors queries. Arbitrary topocentic
+            coordinates for ephemerides queries can be provided in the
+            format of a dictionary. The
+            dictionary has to be of the form {``'lon'``: longitude in
+            deg (East positive, West negative), ``'lat'``: latitude in
+            deg (North positive, South negative), ``'elevation'``:
+            elevation in km above the reference ellipsoid, [``'body'``:
+            Horizons body ID of the central body; optional; if this value
+            is not provided it is assumed that this location is on Earth]}.
+        epochs : scalar, list-like, or dictionary, optional
+            Either a list of epochs in JD or MJD format or a dictionary
+            defining a range of times and dates; the range dictionary has to
+            be of the form {``'start'``:'YYYY-MM-DD [HH:MM:SS]',
+            ``'stop'``:'YYYY-MM-DD [HH:MM:SS]', ``'step'``:'n[y|d|m|s]'}.
+            Epoch timescales depend on the type of query performed: UTC for
+            ephemerides queries, TDB for element queries, CT for vector queries.
+            If no epochs are provided, the current time is used.
+        id_type : str, optional
+            Identifier type, options:
+            ``'smallbody'``, ``'majorbody'`` (planets but also
+            anything that is not a small body), ``'designation'``,
+            ``'name'``, ``'asteroid_name'``, ``'comet_name'``,
+            ``'id'`` (Horizons id number), or ``'smallbody'`` (find the
+            closest match under any id_type), default: ``'smallbody'``
+
+
+        Examples
+        --------
+            >>> from astroquery.jplhorizons import Horizons
+            >>> eros = Horizons(id='433', location='568',
+            ...              epochs={'start':'2017-01-01',
+            ...                      'stop':'2017-02-01',
+            ...                      'step':'1d'})
+            >>> print(eros)  # doctest: +SKIP
+            JPLHorizons instance "433"; location=568, epochs={'start': '2017-01-01', 'step': '1d', 'stop': '2017-02-01'}, id_type=smallbody
+        """
+
+        obj = Horizons(id=name, location=location,
+                       epochs={'start': '{}'.format(epoch_start), 'stop': '{}'.format(epoch_end),
+                               'step': '{}'.format(epoch_step)})
+        eph = obj.ephemerides()
+        return eph
 
     def find_skybot_objects(self,
                             odate,
