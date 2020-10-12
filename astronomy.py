@@ -539,7 +539,7 @@ class AstCalc:
         naxis1 = fo.get_header('naxis1')
         naxis2 = fo.get_header('naxis2')
 
-        if ":" in (ra or dec):
+        if ":" in (str(ra) or str(dec)):
             c = coordinates.SkyCoord('{0} {1}'.format(
                         ra, dec), unit=(u.hourangle, u.deg),
                                  frame='icrs')
