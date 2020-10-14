@@ -274,7 +274,8 @@ class Query:
                  'ransac_zero_point': ransac_zero_point[0],
                  'ransac_slope': ransac_slope[0][0],
                  'stddev': stddev,
-                 'ransac_calibrated_mag': str(ransac_calibrated_mag[0][0]) + "{}".format(stddev/math.sqrt(len(X[inlier_mask]))),
+                 'ransac_calibrated_mag': ransac_calibrated_mag[0][0][0],
+                 'ransac_calibrated_mag_err': "{}".format(stddev/math.sqrt(len(X[inlier_mask]))),
                  'ransac_equation': "{}X + {}".format(ransac_slope[0][0], ransac_zero_point[0]),
                  })
 
