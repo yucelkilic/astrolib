@@ -1130,7 +1130,14 @@ class TimeOps:
         expt = fitsops.get_header(exp)
         dat = fitsops.get_header(dt)
         stp_dat = str(dat).replace(" ", "")
-        tmstamp = self.get_timestamp(stp_dat)
+        dat = fitsops.get_header(dt)
+
+        if "T" in dat:
+            tmstamp = self.get_timestamp(stp_dat)
+        else:
+            tm = fitsops.get_header("TIME-OBS")
+            tmstamp = self.get_timestamp(stp_dat + "T" + str(tm))
+
         ret = tmstamp + timedelta(seconds=float(expt) / 2)
 
         return(ret)
