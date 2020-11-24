@@ -14,7 +14,6 @@ from .astronomy import AstCalc
 from datetime import datetime
 from astropy.table import Table
 import datetime as dt
-from matplotlib.dates import strpdate2num, num2date
 from termcolor import colored
 import smtplib
 from email.mime.multipart import MIMEMultipart
