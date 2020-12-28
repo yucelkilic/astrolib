@@ -1307,13 +1307,8 @@ BLOCKREPEAT = 1
         for feature in kml.features():
             for placemark in feature.features():
                 pairs = []
-                for j, k in enumerate(placemark.geometry.coords.xy[0]):
-                    if k > 90:
-                        k = k % -180
-                    elif k < -90:
-                        k = k % 180
-
-                    pairs.append((placemark.geometry.coords.xy[1][j], k))
+                for j, k, i in placemark.geometry.coords:
+                    pairs.append((k, j))
 
                 if placemark.name in placemark_names:
                     points[placemark.name + "1"] = pairs
@@ -1359,7 +1354,7 @@ BLOCKREPEAT = 1
         middle_point = int(len(locations['Center of shadow']) / 2)
 
         # Make an empty map
-        m = folium.Map(location=locations['Center of shadow'][middle_point], zoom_start=6)
+        m = folium.Map(location=(40, 35), zoom_start=5)
 
 
         # I can add marker one by one on the map

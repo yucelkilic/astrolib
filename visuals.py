@@ -17,12 +17,14 @@ from astropy.wcs import WCS
 from astropy.stats import sigma_clip, mad_std
 from astroquery.skyview import SkyView
 from astroquery.xmatch import XMatch
+from PIL import Image
 
 import aplpy
 
 import numpy as np
 import sep
 import os
+import glob
 
 
 class StarPlot:
@@ -814,3 +816,39 @@ class StarPlot:
         fig.set_title("{} {}".format(ra, dec))
 
         return srg_best_positions
+
+    def multifits2pngs(self, fitsdir):
+
+        types = (fitsdir + '/*.fits', fitsdir + '/*.fit',
+                 fitsdir + '/*.fts')  # the tuple of file types
+
+        fits_grabbed = []
+        for fits_files in types:
+            fits_grabbed.extend(glob.glob(fits_files))
+
+        if fits_grabbed:
+            fits_grabbed = sorted(fits_grabbed)
+        else:
+            return False
+
+        for fits_file in fits_grabbed:
+            self.fits2png(fits_file)
+
+        return True
+
+    def make_animation(self, fitsdir):
+
+        self.multifits2pngs(fitsdir)
+
+        pngdir = fitsdir + '/*.png'
+        png_out = fitsdir + '/animation.gif'
+
+        img, *imgs = [Image.open(f) for f in sorted(glob.glob(pngdir))]
+        img.save(fp=png_out, format='GIF', append_images=imgs,
+                 save_all=True, duration=200, loop=0)
+
+        return True
+
+
+
+
