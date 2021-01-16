@@ -851,18 +851,19 @@ class StarPlot:
 
         return True
 
-    def crop_roi(self, fits_file, source_x, source_y, roi_box=10):
-        basename = os.path.basename(fits_file)
-        body, ext = os.path.splitext(basename)
+    def crop_roi(self, fits_file, source_x, source_y, roi_box=10, use_pil=False):
+        body_path, ext = os.path.splitext(fits_file)
 
         fo = FitsOps(fits_file)
 
         source_roi = fo.hdu[0].data[int(source_y - roi_box):int(source_y + roi_box),
                      int(source_x - roi_box):int(source_x + roi_box)]
 
+
         norm = ImageNormalize(stretch=SqrtStretch())
+        plt.axis('off')
         plt.imshow(source_roi, cmap='Greys', origin='lower', norm=norm)
-        plt.savefig('{}_roi.png'.format(body))
+        plt.savefig('{}_roi.png'.format(body_path), bbox_inches='tight', pad_inches=0, transparent=True)
         plt.close()
 
         return source_roi
