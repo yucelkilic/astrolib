@@ -1,4 +1,6 @@
 import matplotlib.pyplot as plt
+from astropy.visualization import SqrtStretch
+from astropy.visualization.mpl_normalize import ImageNormalize
 from matplotlib import rcParams
 from matplotlib.patches import FancyArrowPatch
 from matplotlib.patches import Ellipse
@@ -848,6 +850,23 @@ class StarPlot:
                  save_all=True, duration=200, loop=0)
 
         return True
+
+    def crop_roi(self, fits_file, source_x, source_y, roi_box=10):
+        basename = os.path.basename(fits_file)
+        body, ext = os.path.splitext(basename)
+
+        fo = FitsOps(fits_file)
+
+        source_roi = fo.hdu[0].data[int(source_y - roi_box):int(source_y + roi_box),
+                     int(source_x - roi_box):int(source_x + roi_box)]
+
+        norm = ImageNormalize(stretch=SqrtStretch())
+        plt.imshow(source_roi, cmap='Greys', origin='lower', norm=norm)
+        plt.savefig('{}_roi.png'.format(body))
+        plt.close()
+
+        return source_roi
+
 
 
 
