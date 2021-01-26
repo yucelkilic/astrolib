@@ -36,14 +36,14 @@ class Weather:
         year, month, day = re.split('[- :/.]', date_obs)
 
         if station.upper() == "T60":
-            urlink = "http://t60meteo.tug.tubitak.gov.tr/index.html/" \
-                     "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
+            urlink = "http://t60meteo.tepe.tug.tubitak.gov.tr/index.html/" \
+                "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
         elif station.upper() == "RTT150":
-            urlink = "http://rtt150meteo.tug.tubitak.gov.tr/" \
-                     "ARC-{0}-{1}-{2}.txt".format(year, month, day)
+            urlink = "http://rtt150meteo.tepe.tug.tubitak.gov.tr/" \
+                "ARC-{0}-{1}-{2}.txt".format(year, month, day)
         elif station.upper() == "T100":
-            urlink = "http://t100meteo.tug.tubitak.gov.tr/index.html/" \
-                     "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
+            urlink = "http://t100meteo.tepe.tug.tubitak.gov.tr/index.html/" \
+                "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
         else:
             print("No station has found!")
             raise SystemExit
