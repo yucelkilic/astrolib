@@ -164,13 +164,17 @@ class FileOps:
                        "5": "z'",
                        "H": "H-alpha",}
 
+        sch_dict = {}
         for file_name in sch_files:
             sch_dict = self.read_sch_file(file_name)
 
             filter_and_durations = []
             durations = 0
             for i, filter in enumerate(sch_dict['FILTER']):
-                filter = filter_dict[filter]
+                try:
+                    filter = filter_dict[filter]
+                except:
+                    filter = "Filtre girilmedi!"
                 filter_and_durations.append(
                     "{0}({1})".format(filter, sch_dict['DURATION'][i]))
                 try:
@@ -181,7 +185,6 @@ class FileOps:
                     exposures.append(float(sch_dict['DURATION'][i]))
                 except ValueError:
                     exposures.append(0)
-
                 filters.append(sch_dict['FILTER'][i])
             total_exposure_time.append(durations * float(sch_dict['REPEAT']))
             total_observation_time.append(
