@@ -21,6 +21,72 @@ class Weather:
         for n in range(int((end_date - start_date).days)):
             yield start_date + timedelta(n)
 
+    def get_current_meteo_data(self, station="T60"):
+
+        if station.upper() == "T60":
+            meteo_feed = feedparser.parse("http://t60meteo.tepe.tug.tubitak.gov.tr/wxrss.xml")
+        elif station.upper() == "RTT150":
+            meteo_feed = feedparser.parse("http://rtt150meteo.tepe.tug.tubitak.gov.tr/wxrss.xml")
+        elif station.upper() == "T100":
+            meteo_feed = feedparser.parse("http://t100meteo.tug.tubitak.gov.tr/wxrss.xml")
+        else:
+            print("No station has found!")
+            raise SystemExit
+
+        for entry in meteo_feed.entries:
+
+            article_title = entry.title
+            article_published_at = entry.published  # Unicode string
+
+            content = entry.content
+
+            print("{}".format(article_title))
+            print("Published at {}".format(article_published_at))
+
+            for line in content[0].value.split("<br />"):
+                if ("<p>" or "</p>" or "\n") not in line:
+                    line = line.replace("</p>", "")
+
+                    if "Wind Chill:" in line:
+                        windchil = line.split(" ")[-2]
+
+                    if "Heat Index:" in line:
+                        heatindex = line.split(" ")[-2]
+
+                    if "Humidity:" in line:
+                        humidity = line.split(" ")[-2]
+
+                    if "Dewpoint:" in line:
+                        dewpoint = line.split(" ")[-2]
+
+                    if "Barometer:" in line:
+                        barometer = line.split(" ")[-2]
+
+                    if "Wind:" in line:
+                        winddir = line.split(" ")[-4]
+                        windspeed = line.split(" ")[-2]
+
+                    if "Rain Today:" in line:
+                        raintoday = line.split(" ")[-2]
+
+                    if "Rain Rate:" in line:
+                        rainrate = line.split(" ")[-2]
+
+        print("Windspeed: (km/h) {} at {}".format(windspeed, winddir))
+        print("Humidity (%):", humidity)
+
+        return {"Time": article_published_at,
+                "Windchil": float(windchil),
+                "Heatindex": float(heatindex),
+                "Humidity": float(humidity),
+                "Dewpoint": float(dewpoint),
+                "Barometer": float(barometer),
+                "Winddir": winddir,
+                "Windspeed": float(windspeed),
+                "Rain Today": float(raintoday),
+                "Rain Rate": float(rainrate)
+                }
+
     def read_davis_data_from_archive(self, date_obs, station="T60", db_file=None):
         """
         It reads wxview result data from meteo station.
