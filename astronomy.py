@@ -20,6 +20,7 @@ from datetime import timedelta
 import math
 from os import path, system, getcwd
 import numpy as np
+import pandas as pd
 
 import sep
 import sewpy
@@ -1107,8 +1108,8 @@ class TimeOps:
         try:
             if len(dt) == 19:
                 frmt = "%Y-%m-%dT%H:%M:%S"
-            
-            t = datetime.strptime(dt, frmt)
+
+            t = pd.to_datetime(dt, format=frmt)
             return(t)
         except Exception as e:
             print(e)
@@ -1140,7 +1141,7 @@ class TimeOps:
 
         ret = tmstamp + timedelta(seconds=float(expt) / 2)
 
-        return(ret)
+        return(ret.isoformat())
 
     def date2jd(self, dt):
 
