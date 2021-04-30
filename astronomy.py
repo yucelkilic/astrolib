@@ -1133,7 +1133,6 @@ class TimeOps:
         dat = fitsops.get_header(dt)
         stp_dat = str(dat).replace(" ", "")
         stp_dat = str(stp_dat).replace(",", ".")
-        dat = fitsops.get_header(dt)
 
         if "T" in dat:
             tmstamp = self.get_timestamp(stp_dat)
