@@ -1388,3 +1388,42 @@ BLOCKREPEAT = 1
             m.save('{}.html'.format(path_name))
 
         return m
+
+    def occultation_path(self, kml_file):
+        """
+        Creates occultation map.
+            Parameters
+            ----------
+            location_file: file object
+                Location file.
+            sep: str
+                Seperator of row data.
+            header: int
+                Row position of header for input file.
+            latitude_column_keyword: str
+                Keyword of latitude column.
+            longitude_column_keyword: str
+                Keyword of longitude column.
+            Returns
+            -------
+            'A map object'
+            Example:
+            -------
+            >>> from astrolib import io
+            >>> fo = io.FileOps()
+            >>> fo.create_occultation_map(kml_file="2002KX14_20200526_NIMAv7_LuckyStar.kmz")
+        """
+        locations = self.read_kml(kml_file)
+
+        body_upper_limit = list(map(list, locations['Body shadow limit']))
+        body_bottom_limit = list(map(list, locations['Body shadow limit1']))
+        body_center = list(map(list, locations['Center of shadow']))
+        upper_uncertain = list(map(list, locations['Uncertainty']))
+        bottom_uncertain = list(map(list, locations['Uncertainty1']))
+
+
+        return {'body_upper_limit': body_upper_limit,
+                'body_bottom_limit': body_bottom_limit,
+                'body_center': body_center,
+                'upper_uncertain': upper_uncertain,
+                'bottom_uncertain': bottom_uncertain}
