@@ -1342,8 +1342,8 @@ BLOCKREPEAT = 1
 
         points = dict()
         placemark_names = ['Body shadow limit1',
-                           'Body shadow limit2',
                            'Center of shadow',
+                           'Body shadow limit2',
                            'Uncertainty1',
                            'Uncertainty2']
 
