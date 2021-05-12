@@ -1341,8 +1341,8 @@ BLOCKREPEAT = 1
         df = gpd.read_file(kml_file, driver='KML')
 
         points = dict()
-        placemark_names = ['Body shadow limit1',
-                           'Center of shadow',
+        placemark_names = ['Center of shadow',
+                           'Body shadow limit1',
                            'Body shadow limit2',
                            'Uncertainty1',
                            'Uncertainty2']
