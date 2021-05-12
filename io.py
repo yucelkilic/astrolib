@@ -20,6 +20,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
 import requests, json
+import geopandas as gpd
+
 
 class FileOps:
 
@@ -1321,6 +1323,39 @@ BLOCKREPEAT = 1
                     placemark_names.append(placemark.name)
         return points
 
+    def read_kml_via_geopd(self, kml_file):
+        """
+        Reads KML files.
+            Parameters
+            ----------
+            fname: file object
+                KML file.
+            Returns
+            -------
+            'list'
+        """
+        # Enable fiona driver
+        gpd.io.file.fiona.drvsupport.supported_drivers['KML'] = 'rw'
+
+        # Read file
+        df = gpd.read_file(kml_file, driver='KML')
+
+        points = dict()
+        placemark_names = ['Body shadow limit1',
+                           'Body shadow limit2',
+                           'Center of shadow',
+                           'Uncertainty1',
+                           'Uncertainty2']
+
+        for idx, feature in enumerate(df['geometry']):
+            pairs = []
+            for j, k, i in feature.coords:
+                pairs.append([k, j])
+
+            points[placemark_names[idx]] = pairs
+
+        return points
+
     def create_occultation_map(self,
                                location_file,
                                kml_file,
@@ -1413,17 +1448,10 @@ BLOCKREPEAT = 1
             >>> fo = io.FileOps()
             >>> fo.create_occultation_map(kml_file="2002KX14_20200526_NIMAv7_LuckyStar.kmz")
         """
-        locations = self.read_kml(kml_file)
+        locations = self.read_kml_via_geopd(kml_file)
 
-        body_upper_limit = list(map(list, locations['Body shadow limit']))
-        body_bottom_limit = list(map(list, locations['Body shadow limit1']))
-        body_center = list(map(list, locations['Center of shadow']))
-        upper_uncertain = list(map(list, locations['Uncertainty']))
-        bottom_uncertain = list(map(list, locations['Uncertainty1']))
-
-
-        return {'body_upper_limit': body_upper_limit,
-                'body_bottom_limit': body_bottom_limit,
-                'body_center': body_center,
-                'upper_uncertain': upper_uncertain,
-                'bottom_uncertain': bottom_uncertain}
+        return {'body_upper_limit': locations['Body shadow limit1'],
+                'body_bottom_limit': locations['Body shadow limit2'],
+                'body_center': locations['Center of shadow'],
+                'upper_uncertain':  locations['Uncertainty1'],
+                'bottom_uncertain':  locations['Uncertainty2']}
