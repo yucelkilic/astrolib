@@ -1129,6 +1129,8 @@ class TimeOps:
 
         fitsops = FitsOps(file_name)
         expt = fitsops.get_header(exp)
+        if expt is False:
+            expt = fitsops.get_header("exposure")
         expt = str(expt).replace(",", ".")
         dat = fitsops.get_header(dt)
         stp_dat = str(dat).replace(" ", "")
