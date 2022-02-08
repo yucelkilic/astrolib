@@ -16,12 +16,13 @@ from astropy import table
 from astropy import coordinates
 from astropy import units as u
 from astropy.wcs import WCS
+from astropy.visualization import ZScaleInterval
 from astropy.stats import sigma_clip, mad_std
 from astroquery.skyview import SkyView
 from astroquery.xmatch import XMatch
 from PIL import Image
 
-import aplpy
+# import aplpy
 
 import numpy as np
 import sep
@@ -45,24 +46,18 @@ class StarPlot:
         @returns: boolean
         """
 
-        rcParams['figure.figsize'] = [15., 12.]
-
-        # plot background-subtracted image
-        fig, ax = plt.subplots()
-
-        m, s = np.mean(image_data), np.std(image_data)
-        ax.imshow(image_data, interpolation='nearest',
-                  cmap='gray', vmin=m - s, vmax=m + s, origin='lower')
+        figsize = (8, 8)
+        data = image_data.astype(float)
+        fig, ax = plt.subplots(figsize=figsize)
+        zscale = ZScaleInterval(nsamples=1000)
+        ax.imshow(zscale(data), cmap="gray", aspect="auto")
 
         # plot an ellipse for each object
-
-        objects = Table(objects)
-
         for i in range(len(objects)):
-            e = Ellipse(xy=(objects['x'][i], objects['y'][i]),
-                        width=6 * objects['a'][i],
-                        height=6 * objects['b'][i],
-                        angle=objects['theta'][i] * 180. / np.pi)
+            e = Ellipse(xy=(objects['X_IMAGE'][i], objects['Y_IMAGE'][i]),
+                        width=6 * objects['A_IMAGE'][i],
+                        height=6 * objects['B_IMAGE'][i],
+                        angle=objects['A_IMAGE'][i] * 180. / np.pi)
 
             e.set_facecolor('none')
             e.set_edgecolor(mark_color)

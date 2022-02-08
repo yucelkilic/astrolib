@@ -208,7 +208,7 @@ NET {6}""".format(code, observer, observer, tel,
 
         sew = sewpy.SEW(params=['FLAGS', 'X_IMAGE', 'Y_IMAGE', 'ALPHA_J2000', 'DELTA_J2000', 'FLUX_AUTO', 'FLUXERR_AUTO',
                                   'FLUX_APER', 'FLUXERR_APER', 'FLUX_PETRO', 'FLUXERR_PETRO', 'FLUX_MAX', 'XPEAK_IMAGE', 'YPEAK_IMAGE', 'MAG_APER', 'MAGERR_APER',
-                          'BACKGROUND', 'MAG_AUTO', 'MAGERR_AUTO', 'FWHM_IMAGE', 'ELONGATION'],
+                          'BACKGROUND', 'MAG_AUTO', 'MAGERR_AUTO', 'FWHM_IMAGE', 'ELONGATION', 'A_IMAGE', 'B_IMAGE', 'THETA_IMAGE'],
                         config={'DETECT_THRESH': 3,
                                 'ANALYSIS_THRESH': 3,
                                 'PHOT_APERTURES': 5,

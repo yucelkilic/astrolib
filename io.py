@@ -227,13 +227,11 @@ class FileOps:
         if email_format is True:
             if project_term is not None:
                 if "A" in project_term:
-                    project_term = project_term + " (Şubat - Nisan)"
+                    project_term = project_term + " (Şubat - Mayıs)"
                 elif "B" in project_term:
-                    project_term = project_term + " (Mayıs - Temmuz)"
+                    project_term = project_term + " (Haziran - Eylül)"
                 elif "C" in project_term:
-                    project_term = project_term + " (Ağustos - Ekim)"
-                elif "D" in project_term:
-                    project_term = project_term + " (Kasım - Ocak)"
+                    project_term = project_term + " (Ekim - Ocak)"
 
                 message = "<strong>{pid}</strong> nolu projeniz kapsamında, <strong>{project_term}</strong> ".format(
                     pid=pid,
@@ -352,6 +350,59 @@ class FileOps:
 
         return sorted(set(filters)), sorted(set(exposures))
 
+    def list_pts_objects(self, project_term=None, telescope="t60",
+                   key=None,
+                   out_file_path="./"):
+        """
+        Returns all objects from TUG PTS by project term.
+            Parameters
+            ----------
+            project_term: str
+                Robotic T60 Telescope project term.
+            key: str
+                API key.
+            out_file_path: str
+                Out file path.
+            Returns
+            -------
+            'Talon sch files'
+            Example:
+            -------
+        """
+
+        api_uri = "http://api.pts.tug.tubitak.gov.tr/v1/{telescope}/projects/terms/{project_term}".format(
+            project_term=project_term, telescope=telescope)
+        headers = {
+            'Content-Type': 'application/json',
+            'PTS-API-KEY': str(key)
+        }
+        try:
+            data = requests.get(api_uri, headers=headers, timeout=1)
+            if (data.status_code != 200):
+                pass
+        except requests.exceptions.RequestException:
+            pass
+        except requests.exceptions.HTTPError as e:
+            return e
+        except requests.exceptions.ConnectionError as e:
+            return e
+        except requests.exceptions.Timeout as e:
+            return e
+
+        projects = data.json()['content']
+
+        # print(projects)
+
+        pts_ak_score_dict = {}
+        for project in projects:
+            # print(project['parent_id'], float(project['ak_score']))
+            if project['parent_id'] == 0:
+                pid = project['id']
+            else:
+                pid = project['parent_id']
+            print(project['objects'])
+
+        return True
 
     def pts_to_sch_files(self, project_term=None,
                    key=None,
