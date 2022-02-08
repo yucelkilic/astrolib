@@ -56,7 +56,7 @@ Here I created help documentation for the commands I use the frequently. You can
 from astrolib import astronomy
 
 fo = astronomy.FitsOps("108hecuba-001_R_affineremap.fits")
-ds= fo.detect_sources(skycoords=True, max_sources=10)
+ds= fo.detect_sources(max_sources=10)
 print(ds)
 ```
 

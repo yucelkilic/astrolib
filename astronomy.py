@@ -137,64 +137,32 @@ NET {6}""".format(code, observer, observer, tel,
         return True
 
 
-    def detect_sources(self, plot=False, skycoords=False, max_sources=50,
-                       exp_keyword="exptime"):
+    def detect_sources(self, plot=False, max_sources=None, catalog_output=None):
         """
         It detects sources on FITS image with sep module.
         @param plot
         @type plot: boolean
-        @param skycoords: Calculate sky coordinates of sources.
-        @type skycoords: boolean
         @param max_sources: Maximum detection limit.
         @type max_sources: int
-        @type exp_keyword: String
-        @param exp_keyword: EXPTIME keyword in FITS header
         @return: astropy.table
         """
-        data = self.hdu[0].data.astype(float)
-        bkg = sep.Background(data)
-        data_sub = data - bkg
-        all_objects = sep.extract(data_sub, 1.5, err=bkg.globalrms)
-        ord_objects = np.sort(all_objects, order=['flux'])
+        objects = self.source_extract()
 
-        if len(ord_objects) <= max_sources:
-            max_sources = len(ord_objects)
-            objects = ord_objects[::-1][:max_sources]
-        if len(ord_objects) > max_sources:
-            objects = ord_objects[::-1][:max_sources]
-        elif not max_sources:
-            objects = ord_objects[::-1]
+        if max_sources is not None:
+            objects = objects[:max_sources]
 
-        if plot:
+        if catalog_output is True:
+            cat_file = os.path.splitext(self.file_name)[0]
+            ascii.write(objects, "{}.csv".format(cat_file), format='csv', fast_writer=False)
+
+        if plot is True:
             from .visuals import StarPlot
+            data = self.hdu[0].data.astype(float)
             splt = StarPlot()
-            splt.star_plot(data_sub, objects)
 
-        ac = AstCalc()
-        if skycoords:
-            xy2sky2_ops = AstCalc()
-            objects_ra = []
-            objects_dec = []
-            objects_mag = []
-            for j in range(len(objects)):
-                objects_sky = xy2sky2_ops.xy2sky2(self.file_name,
-                                                  objects['x'][j],
-                                                  objects['y'][j])
-                objects_ra.append(objects_sky.ra.degree)
-                objects_dec.append(objects_sky.dec.degree)
-                exptime = float(self.hdu[0].header[exp_keyword])
-                objects_mag.append(ac.flux2mag(objects['flux'][j], exptime))
+            splt.star_plot(data, objects)
 
-            print("{0} objects detected.".format(len(objects)))
-            col_ra_calc = Table.Column(name='ra_calc', data=objects_ra)
-            col_dec_calc = Table.Column(name='dec_calc', data=objects_dec)
-            col_mag = Table.Column(name='mag', data=objects_mag)
-            tobjects = Table(objects)
-            tobjects.add_columns([col_ra_calc, col_dec_calc, col_mag])
-            return tobjects
-        else:
-            print("{0} objects detected.".format(len(objects)))
-            return(Table(objects))
+        return objects
 
     def source_extract(self, radius=10):
 
