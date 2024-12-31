@@ -21,7 +21,7 @@ class Weather:
         for n in range(int((end_date - start_date).days)):
             yield start_date + timedelta(n)
 
-    def get_current_meteo_data(self, station="T60"):
+    def get_current_meteo_data(self, station="RTT150"):
 
         if station.upper() == "T60":
             meteo_feed = feedparser.parse("http://t60meteo.tepe.trgozlemevleri.gov.tr/wxrss.xml")
