@@ -370,7 +370,7 @@ class FileOps:
             -------
         """
 
-        api_uri = "http://api.pts.tug.tubitak.gov.tr/v1/{telescope}/projects/terms/{project_term}".format(
+        api_uri = "http://api.pts.trgozlemevleri.gov.tr/v1/{telescope}/projects/terms/{project_term}".format(
             project_term=project_term, telescope=telescope)
         headers = {
             'Content-Type': 'application/json',
@@ -424,7 +424,7 @@ class FileOps:
             -------
         """
 
-        api_uri = "http://api.pts.tug.tubitak.gov.tr/v1/t60/projects/terms/{project_term}".format(
+        api_uri = "http://api.pts.trgozlemevleri.gov.tr/v1/t60/projects/terms/{project_term}".format(
             project_term=project_term)
         headers = {
             'Content-Type': 'application/json',
@@ -1320,7 +1320,7 @@ BLOCKREPEAT = 1
                              'SDRa',
                              'SDDecl']])
 
-    def send_email(self, sender=str(Header('TUG Robotik T60 Teleskobu <tug.t60@tug.tubitak.gov.tr>')),
+    def send_email(self, sender=str(Header('TUG Robotik T60 Teleskobu <tug.t60@trgozlemevleri.gov.tr>')),
                    receivers=[],
                    mail_server='',
                    subject=None,

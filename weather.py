@@ -24,11 +24,11 @@ class Weather:
     def get_current_meteo_data(self, station="T60"):
 
         if station.upper() == "T60":
-            meteo_feed = feedparser.parse("http://t60meteo.tepe.tug.tubitak.gov.tr/wxrss.xml")
+            meteo_feed = feedparser.parse("http://t60meteo.tepe.trgozlemevleri.gov.tr/wxrss.xml")
         elif station.upper() == "RTT150":
-            meteo_feed = feedparser.parse("http://rtt150meteo.tepe.tug.tubitak.gov.tr/wxrss.xml")
+            meteo_feed = feedparser.parse("http://rtt150meteo.tepe.trgozlemevleri.gov.tr/wxrss.xml")
         elif station.upper() == "T100":
-            meteo_feed = feedparser.parse("http://t100meteo.tug.tubitak.gov.tr/wxrss.xml")
+            meteo_feed = feedparser.parse("http://t100meteo.trgozlemevleri.gov.tr/wxrss.xml")
         else:
             print("No station has found!")
             raise SystemExit
@@ -102,13 +102,13 @@ class Weather:
         year, month, day = re.split('[- :/.]', date_obs)
 
         if station.upper() == "T60":
-            urlink = "http://t60meteo.tepe.tug.tubitak.gov.tr/index.html/" \
+            urlink = "http://t60meteo.tepe.trgozlemevleri.gov.tr/index.html/" \
                 "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
         elif station.upper() == "RTT150":
-            urlink = "http://rtt150meteo.tepe.tug.tubitak.gov.tr/" \
+            urlink = "http://rtt150meteo.tepe.trgozlemevleri.gov.tr/" \
                 "ARC-{0}-{1}-{2}.txt".format(year, month, day)
         elif station.upper() == "T100":
-            urlink = "http://t100meteo.tepe.tug.tubitak.gov.tr/index.html/" \
+            urlink = "http://t100meteo.tepe.trgozlemevleri.gov.tr/index.html/" \
                 "Archive/ARC-{0}-{1}-{2}.txt".format(year, month, day)
         else:
             print("No station has found!")

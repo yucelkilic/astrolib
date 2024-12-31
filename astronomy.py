@@ -190,9 +190,14 @@ NET {6}""".format(code, observer, observer, tel,
                                 'FILTER': 'Y',
                                 'VERBOSE_TYPE': 'QUIET'})
         out = sew(self.file_name)
-        out["table"]["MAG_AUTO"][np.where(out["table"]["MAG_AUTO"] == 99)] = None
-        out["table"]["MAGERR_AUTO"][np.where(out["table"]["MAGERR_AUTO"] == 99)] = None
-        return out["table"]
+        try:
+            out["table"]["MAG_AUTO"][np.where(out["table"]["MAG_AUTO"] == 99)] = None
+            out["table"]["MAGERR_AUTO"][np.where(out["table"]["MAGERR_AUTO"] == 99)] = None
+            return out["table"]
+        except Exception as e:
+            # Log the error if needed (optional)
+            print(f"Error processing data: {str(e)}")
+            return out["table"]
 
 
     def fits_stat(self):
