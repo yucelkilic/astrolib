@@ -29,6 +29,8 @@ import time
 import glob
 from astropy.utils.exceptions import AstropyWarning
 import warnings
+import logging
+logger = logging.getLogger(__name__)
 
 
 class FitsOps:
@@ -1087,37 +1089,45 @@ class TimeOps:
         except Exception as e:
             print(e)
 
-    def get_timestamp_exp(self, file_name, dt="date-obs", exp="exptime"):
-
+    def get_timestamp_exp(self, file_name, dt="DATE-OBS", exp="EXPTIME"):
         """
-        Returns FITS file's date with exposure time included.
-        @param file_name: FITS image file name with path
-        @type file_name: str
-        @param dt: DATE-OBS keyword
-        @type dt: str
-        @param exp: Exposure time keyword
-        @type exp: str
-        @return: date
+        Returns the FITS file's timestamp including half of the exposure time.
+        If exposure or date headers are missing or malformed, falls back gracefully.
         """
-
         fitsops = FitsOps(file_name)
-        expt = fitsops.get_header(exp)
-        if expt is False:
-            expt = fitsops.get_header("exposure")
-        expt = str(expt).replace(",", ".")
-        dat = fitsops.get_header(dt)
-        stp_dat = str(dat).replace(" ", "")
-        stp_dat = str(stp_dat).replace(",", ".")
 
-        if "T" in dat:
+        # --- Try to read exposure time ---
+        expt = fitsops.get_header(exp)
+        if not expt:
+            expt = fitsops.get_header("EXPOSURE")
+
+        try:
+            expt = str(expt).replace(",", ".").strip()
+            expt_val = float(expt)
+        except (ValueError, TypeError):
+            expt_val = 0.0  # default fallback
+
+        # --- Try to read observation date ---
+        dat = fitsops.get_header(dt)
+        if not dat:
+            # totally missing DATE-OBS
+            raise ValueError(f"DATE-OBS keyword not found in FITS header: {file_name}")
+
+        stp_dat = str(dat).replace(" ", "").replace(",", ".")
+
+        if "T" in stp_dat:
             tmstamp = self.get_timestamp(stp_dat)
         else:
             tm = fitsops.get_header("TIME-OBS")
             tmstamp = self.get_timestamp(stp_dat + "T" + str(tm))
 
-        ret = tmstamp + timedelta(seconds=float(expt) / 2)
-
-        return(ret.isoformat())
+        # --- Add half the exposure time safely ---
+        try:
+            ret = tmstamp + timedelta(seconds=expt_val / 2.0)
+            return ret.isoformat()
+        except Exception as e:
+            logger.warning("get_timestamp_exp failed for %s: %s", file_name, e)
+            return tmstamp.isoformat()
 
     def date2jd(self, dt):
 
