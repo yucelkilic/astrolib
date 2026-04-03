@@ -175,7 +175,7 @@ class FileOps:
             for i, filter in enumerate(sch_dict['FILTER']):
                 try:
                     filter = filter_dict[filter]
-                except:
+                except Exception:
                     filter = "Filtre girilmedi!"
                 filter_and_durations.append(
                     "{0}({1})".format(filter, sch_dict['DURATION'][i]))
@@ -1134,7 +1134,7 @@ BLOCKREPEAT = 1
                             ret = "     " + id_name
                         else:
                             ret = id_name
-                except:
+                except Exception:
                     continue
             f.close()
         except Exception as e:
@@ -1171,7 +1171,7 @@ BLOCKREPEAT = 1
                             ret = "     " + id_name
                         else:
                             ret = id_name
-                except:
+                except Exception:
                     continue
             f.close()
         except Exception as e:
@@ -1339,7 +1339,7 @@ BLOCKREPEAT = 1
             smtpObj.quit()
             print(colored("Successfully sent email to {0}".format(receivers[0]), "green"))
             return True
-        except:
+        except Exception:
             print(colored("Error: unable to send email to {0}".format(receivers[0]), "red"))
             return False
 

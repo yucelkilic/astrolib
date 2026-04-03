@@ -463,7 +463,7 @@ class Query:
                 else:
                     return (False, str(skyresult))
 
-            except:
+            except Exception:
                 print("\nConnection Failed, Retrying..")
                 continue
             break

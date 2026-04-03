@@ -400,7 +400,7 @@ class PhotOps:
                             magt_err = math.sqrt(
                                 math.pow(float(magt_i_err), 2) +
                                 math.pow(float(magc_i_err), 2))
-                        except:
+                        except Exception:
                             continue
 
                         label = '{0}'.format(s_comptable['NOMAD1'][j])

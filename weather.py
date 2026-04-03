@@ -123,7 +123,7 @@ class Weather:
                                         comments="---",
                                         skip_header=1,
                                         dtype="|U30")
-        except:
+        except Exception:
             return False
 
         if db_file is None:
