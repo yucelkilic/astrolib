@@ -21,9 +21,20 @@ import math
 from os import path, system, getcwd
 import numpy as np
 import pandas as pd
+from pathlib import Path
+import sys
 
 import sep
-import sewpy
+try:
+    import sewpy
+except ModuleNotFoundError:
+    # Fallback to repository-submodule layout: <repo>/sewpy/src
+    _vendor_sewpy_src = Path(__file__).resolve().parents[2] / "sewpy" / "src"
+    if _vendor_sewpy_src.exists():
+        _vendor_sewpy_src_str = str(_vendor_sewpy_src)
+        if _vendor_sewpy_src_str not in sys.path:
+            sys.path.insert(0, _vendor_sewpy_src_str)
+    import sewpy
 import os
 import time
 import glob
