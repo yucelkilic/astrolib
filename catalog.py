@@ -2,7 +2,6 @@ import astropy.coordinates as coord
 from astropy.table import Table
 from astropy import units as u
 import astropy.io.fits as fits
-# from astropy.constants import c
 from astropy import stats
 from astropy.io import ascii
 from astroquery.jplhorizons import Horizons
@@ -248,13 +247,9 @@ class Query:
         else:
             table['deltaMag'] = table[filter] - table[phot_method]
 
-        mean, median, stddev = stats.sigma_clipped_stats(table['deltaMag'], sigma=2, maxiters=5)
+        _, median, stddev = stats.sigma_clipped_stats(table['deltaMag'], sigma=2, maxiters=5)
 
-        linear_zero_point = None
-        linear_r2 = None
-        ransac_r2 = None
         ransac_zero_point = None
-        linear_calibrated_mag = []
         ransac_calibrated_mag = []
 
         if "FLUX" in phot_method:
@@ -277,7 +272,6 @@ class Query:
 
         # Predict data of estimated models
         line_X = np.arange(X.min(), X.max())[:, np.newaxis]
-        line_y = lr.predict(line_X)
         line_y_ransac = ransac.predict(line_X)
 
         # Compare estimated coefficients
@@ -293,17 +287,12 @@ class Query:
             for object in phot_object:
                 c = coord.SkyCoord(object[ra_keyword], object[dec_keyword], frame="icrs", unit="deg")
                 catalog = coord.SkyCoord(ds[ra_keyword], ds[dec_keyword], frame="icrs", unit="deg")
-                max_sep = 1.0 * u.arcsec
-                idx, d2d, d3d = c.match_to_catalog_3d(catalog)
-                sep_constraint = d2d < max_sep
+                idx, _, _ = c.match_to_catalog_3d(catalog)
                 to_be_calibrated_table = ds[idx]
 
-                # linear_calibrated_mag.append(
-                #     lr.predict(np.asarray(to_be_calibrated_table[phot_method]).reshape(-1, 1)))
                 ransac_calibrated_mag.append(
                     ransac.predict(np.asarray(to_be_calibrated_table[phot_method]).reshape(-1, 1)))
         else:
-            linear_calibrated_mag = [None]
             ransac_calibrated_mag = [None]
 
         if plot is True:

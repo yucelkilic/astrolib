@@ -12,8 +12,6 @@ from astropy.table import Table, Column
 from ccdproc import ImageFileCollection
 import ccdproc
 
-# from pyraf import iraf
-
 from datetime import datetime
 from datetime import timedelta
 
@@ -102,7 +100,7 @@ NET {6}""".format(code, observer, observer, tel,
         try:
             header_key = self.hdu[0].header[key]
             ret = header_key
-        except Exception as e:
+        except Exception:
             ret = False
 
         return ret
@@ -144,7 +142,7 @@ NET {6}""".format(code, observer, observer, tel,
             hdu[0].header.remove(keyword)
             print("{0} keyword has beed deleted!".format(keyword))
             hdu.close()
-        except Exception as e:
+        except Exception:
             return False
 
         return True
@@ -361,7 +359,7 @@ class AstCalc:
                                      unit=(u.hourangle, u.deg), frame='icrs')
 
             return(c)
-        except Exception as e:
+        except Exception:
             pass
 
     def deg2hmsdms(self, ra, dec):
@@ -412,7 +410,7 @@ class AstCalc:
 
             return("{0} {1}".format(alpha.split(" ")[0],
                                     delta.split(" ")[1]))
-        except Exception as e:
+        except Exception:
             pass
 
     def xy2sky2(self, file_name, x, y):
@@ -458,7 +456,7 @@ class AstCalc:
         """
 
         try:
-            file_path, file_and_ext = path.split(file_name)
+            file_path, _ = path.split(file_name)
             system("xy2sky {0} {1} {2} > {3}/coors".format(
                 file_name,
                 x,
@@ -482,9 +480,7 @@ class AstCalc:
             return("{0} {1}".format(alpha.split(" ")[0],
                                     delta.split(" ")[1]))
 
-            # return('{0} {1}'.format(alpha, delta))
-
-        except Exception as e:
+        except Exception:
             pass
 
     def xy2sky2wcs(self, file_name, x, y):
@@ -503,7 +499,7 @@ class AstCalc:
         """
 
         try:
-            file_path, file_and_ext = path.split(file_name)
+            file_path, _ = path.split(file_name)
             system("xy2sky {0} {1} {2} > {3}/coors".format(
                 file_name,
                 x,
@@ -522,7 +518,7 @@ class AstCalc:
                                      unit=(u.hourangle, u.deg), frame='fk5')
 
             return(c)
-        except Exception as e:
+        except Exception:
             pass
 
     def sky2xy(self, image_path, ra, dec):
@@ -668,7 +664,7 @@ class AstCalc:
             if ".gz" in image_path:
                 root = '.'.join(image_path.split('.')[:-2])
             else:
-                root, extension = path.splitext(image_path)
+                root, _ = path.splitext(image_path)
 
             system(("rm -rf {0}-indx.png {0}-indx.xyls "
                     "{0}-ngc.png {0}-objs.png "
@@ -779,7 +775,7 @@ class AstCalc:
         A_y = np.linalg.lstsq(np.array(x_xy), np.asarray(b_yy))[0]
 
         a, b, c = A_x
-        d, e, f = A_y
+        _, e, f = A_y
 
         coor_list = []
 
@@ -829,7 +825,6 @@ class AstCalc:
                               None])
 
         results = np.array(coor_list, dtype=np.float)
-        # results = results[np.isnan(results)] = 0
         
         rms_ra = np.sqrt(np.mean(np.power(results[:, 7], 2)))
         rms_dec = np.sqrt(np.mean(np.power(results[:, 8], 2)))
@@ -1300,7 +1295,7 @@ class RedOps:
         master_bias = ccdproc.combine(bias_list, method='median')
         
         if out_file:
-            head, tail = os.path.split(image_path)
+            head, _ = os.path.split(image_path)
             master_bias.write("{0}/master_bias.fits".format(head),
                               overwrite=True)
 
@@ -1360,7 +1355,7 @@ class RedOps:
             master_darks[dark_exptime] = ccdproc.combine(dark_list, method='median')
 
             if out_file:
-                head, tail = os.path.split(image_path)
+                head, _ = os.path.split(image_path)
                 master_darks[dark_exptime].write("{0}/master_dark_{1}.fits".format(head,
                                                                     dark_exptime),
                                                  overwrite=True)
@@ -1423,7 +1418,7 @@ class RedOps:
         master_flat = ccdproc.combine(flat_list, method='median')
 
         if out_file:
-            head, tail = os.path.split(image_path)
+            head, _ = os.path.split(image_path)
             master_flat.write("{0}/master_flat.fits".format(head),
                               overwrite=True)
 

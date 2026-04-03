@@ -215,7 +215,6 @@ class FileOps:
                                                                                                       'table cellspacing="0" cellpadding="6" border="1"')
 
         used_filters = sorted(set(filters))
-        # used_filters = ''
 
         if '' in used_filters:
             note = "Not: Filtre/Poz süreleri belirtilmemiş nesneleriniz bulunmaktadır. " \
@@ -309,9 +308,6 @@ class FileOps:
         """
 
         sch_files = sorted(glob.glob("{0}/*.sch".format(schs_path)))
-        project_proper = []
-        total_exposure_time = []
-        total_observation_time = []
         exposures = []
         filters = []
 
@@ -331,16 +327,8 @@ class FileOps:
         for file_name in sch_files:
             sch_dict = self.read_sch_file(file_name)
 
-            filter_and_durations = []
-            durations = 0
             for i, filter in enumerate(sch_dict['FILTER']):
                 filter = filter_dict[filter]
-                filter_and_durations.append(
-                    "{0}({1})".format(filter, sch_dict['DURATION'][i]))
-                try:
-                    durations += float(sch_dict['DURATION'][i])
-                except ValueError:
-                    durations += 0
                 try:
                     exposures.append(float(sch_dict['DURATION'][i]))
                 except ValueError:
@@ -393,13 +381,7 @@ class FileOps:
 
         # print(projects)
 
-        pts_ak_score_dict = {}
         for project in projects:
-            # print(project['parent_id'], float(project['ak_score']))
-            if project['parent_id'] == 0:
-                pid = project['id']
-            else:
-                pid = project['parent_id']
             print(project['objects'])
 
         return True
@@ -608,7 +590,6 @@ class FileOps:
         durations = []
 
         for object in objects:
-            aco = AstCalc()
             for fw in filters_in_wheel:
                 if fw in object[4]:
                     filters = object[4].split(";")
@@ -1440,8 +1421,6 @@ BLOCKREPEAT = 1
         for_map = pd.read_csv(location_file, sep=sep, header=header)
         locations = self.read_kml(kml_file)
 
-        middle_point = int(len(locations['Center of shadow']) / 2)
-
         # Make an empty map
         m = folium.Map(location=(40, 35), zoom_start=5)
 
@@ -1459,7 +1438,7 @@ BLOCKREPEAT = 1
             p = Point('''{lat} {long}'''.format(lat=lat, long=long))
             # print(observatory, p.format_decimal)
 
-            latitude, longitude, altitude = p
+            latitude, longitude, _ = p
 
             folium.Marker([latitude, longitude], popup=observatory).add_to(m)
 
@@ -1470,7 +1449,7 @@ BLOCKREPEAT = 1
         folium.PolyLine(locations['Uncertainty1'], popup="Uncertainty ", color='red', dash_array='10').add_to(m)
 
         if save_map:
-            path_name, ext = os.path.splitext(location_file)
+            path_name, _ = os.path.splitext(location_file)
             m.save('{}.html'.format(path_name))
 
         return m

@@ -178,7 +178,7 @@ class Weather:
                                           'f8'))
         else:
             conn = sqlite3.connect(sqlite_file)
-            c = conn.cursor()
+            _ = conn.cursor()
 
 
         return(tbl_davis_data)
@@ -275,14 +275,10 @@ class Weather:
 
         date_obs = "{0}-{1}-{2}".format(year, month, day)
 
-        # d = datetime.strptime(date_obs, "%Y-%m-%dT%H:%M:%S")
-        # date_obs = d.strftime("%Y-%m-%d")
-
-
-        if twilight is "nautical":
+        if twilight == "nautical":
             # date from after mid
 
-            mt_before, et_before = self.nautical_twilight(
+            _, et_before = self.nautical_twilight(
                 date_obs,
                 site_longitude,
                 site_latitude,
@@ -291,17 +287,17 @@ class Weather:
                 time_zone)
 
             end_date = date(int(year), int(month), int(day)) + timedelta(1)
-            mt_after, et_after = self.nautical_twilight(
+            mt_after, _ = self.nautical_twilight(
                 end_date.strftime("%Y-%m-%d"),
                 site_longitude,
                 site_latitude,
                 site_elevation,
                 site_name,
                 time_zone)
-        elif twilight is "astronomical":
+        elif twilight == "astronomical":
             # date from after mid
 
-            mt_before, et_before = self.astronomical_twilight(
+            _, et_before = self.astronomical_twilight(
                 date_obs,
                 site_longitude,
                 site_latitude,
@@ -310,7 +306,7 @@ class Weather:
                 time_zone)
 
             end_date = date(int(year), int(month), int(day)) + timedelta(1)
-            mt_after, et_after = self.astronomical_twilight(
+            mt_after, _ = self.astronomical_twilight(
                 end_date.strftime("%Y-%m-%d"),
                 site_longitude,
                 site_latitude,

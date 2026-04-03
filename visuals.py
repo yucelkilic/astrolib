@@ -22,8 +22,6 @@ from astroquery.skyview import SkyView
 from astroquery.xmatch import XMatch
 from PIL import Image
 
-# import aplpy
-
 import numpy as np
 import sep
 import os
@@ -48,7 +46,7 @@ class StarPlot:
 
         figsize = (8, 8)
         data = image_data.astype(float)
-        fig, ax = plt.subplots(figsize=figsize)
+        _, ax = plt.subplots(figsize=figsize)
         zscale = ZScaleInterval(nsamples=1000)
         ax.imshow(zscale(data), cmap="gray", aspect="auto")
 
@@ -106,7 +104,6 @@ class StarPlot:
 
         from .catalog import Query
 
-        # filename = get_pkg_data_filename(image_path)
         rcParams['figure.figsize'] = [10., 8.]
         # rcParams.update({'font.size': 10})
 
@@ -134,8 +131,6 @@ class StarPlot:
         data = hdu.data.astype(float)
 
         bkg = sep.Background(data)
-        # bkg_image = bkg.back()
-        # bkg_rms = bkg.rms()
         data_sub = data - bkg
         m, s = np.mean(data_sub), np.std(data_sub)
 
@@ -366,7 +361,6 @@ class StarPlot:
         result_file = Table.read(result_file_path,
                                  format='ascii.commented_header')
 
-        # result_unique_by_keys = table.unique(result_file, keys='nomad1')
         result_unique_by_jd = table.unique(result_file, keys='jd')
 
         magt_std_list = []
@@ -590,7 +584,7 @@ class StarPlot:
                              label=label)
 
         image.writetitle(os.path.basename(fitsfile))
-        fitshead, fitsextension = os.path.splitext(fitsfile)
+        fitshead, _ = os.path.splitext(fitsfile)
         image.tonet('{0}.png'.format(fitshead))
 
         print('\033[1;34mAll sources plotted on: {0}.png\033[0m'.format(fitshead))
@@ -618,12 +612,10 @@ class StarPlot:
             raise SystemExit
 
         if image_path:
-            hdu = fits.open(image_path)[0]
+            _ = fits.open(image_path)[0]
         else:
             print("No image provided!")
             raise SystemExit
-
-        wcs = WCS(hdu.header)
 
         # plot an ellipse for each object
         if ":" not in (ra or dec):
@@ -652,7 +644,7 @@ class StarPlot:
                          label=label)
 
         image.writetitle(os.path.basename(image_path))
-        fitshead, fitsextension = os.path.splitext(image_path)
+        fitshead, _ = os.path.splitext(image_path)
         image.tonet('{0}.png'.format(fitshead))
 
         print('\033[1;34mSource plotted on: {0}.png\033[0m'.format(fitshead))
@@ -680,7 +672,7 @@ class StarPlot:
             raise SystemExit
 
         if image_path:
-            hdu = fits.open(image_path)[0]
+            _ = fits.open(image_path)[0]
         else:
             print("No image provided!")
             raise SystemExit
@@ -690,7 +682,7 @@ class StarPlot:
         image.makepilimage('log', negative=False)
 
         image.writetitle(os.path.basename(image_path))
-        fitshead, fitsextension = os.path.splitext(image_path)
+        fitshead, _ = os.path.splitext(image_path)
         image.tonet('{0}.png'.format(fitshead))
 
         return True
@@ -734,7 +726,6 @@ class StarPlot:
 
         from .catalog import Query
 
-        # filename = get_pkg_data_filename(image_path)
         rcParams['figure.figsize'] = [12., 12.]
         # rcParams.update({'font.size': 10})
 
@@ -847,7 +838,7 @@ class StarPlot:
         return True
 
     def crop_roi(self, fits_file, source_x, source_y, roi_box=10, use_pil=False):
-        body_path, ext = os.path.splitext(fits_file)
+        body_path, _ = os.path.splitext(fits_file)
 
         fo = FitsOps(fits_file)
 
@@ -862,8 +853,6 @@ class StarPlot:
         plt.close()
 
         return source_roi
-
-
 
 
 

@@ -79,8 +79,6 @@ class PhotOps:
         data = hdu.data.astype(float)
 
         bkg = sep.Background(data)
-        # bkg_image = bkg.back()
-        # bkg_rms = bkg.rms()
         data_sub = data - bkg
 
         flux, fluxerr, flag = sep.sum_circle(data_sub,
@@ -243,11 +241,6 @@ class PhotOps:
             else:
                 objct = str(target)
             filter = fo.get_header('filter').replace(" ", "_")
-            # t1 = Time(odate.replace('T', ' '))
-            # exptime = fo.get_header('exptime')
-            # dt = TimeDelta(exptime / 2.0, format='sec')
-            # odate_middle = t1 + dt
-            # jd = to.date2jd(odate_middle.value)
             jd = to.date2jd(odate)
             ra_dec = ac.center_finder(fitsfile, wcs_ref=True)
 
@@ -293,7 +286,7 @@ class PhotOps:
                         continue
 
                     # phot asteroids
-                    flux, fluxerr, flag = sep.sum_circle(
+                    flux, fluxerr, _ = sep.sum_circle(
                         data_sub,
                         a_x,
                         a_y,
@@ -309,7 +302,7 @@ class PhotOps:
                         snr = []
                         for aper in range(30):
                             # phot asteroids
-                            flux_test, fluxerr_test, flag_test = sep.sum_circle(
+                            flux_test, fluxerr_test, _ = sep.sum_circle(
                                 data_sub,
                                 a_x,
                                 a_y,
@@ -436,7 +429,7 @@ class PhotOps:
                     np_magt_avr_std = [[magt_avr,
                                         magt_std,
                                         filter,
-                                        exptime] for i in range(
+                                        exptime] for _ in range(
                         len(np_phot_res))]
                     
                     k = np.array(np_magt_avr_std).reshape(
@@ -516,7 +509,7 @@ class PhotOps:
                 id / len(fitslist))
             image.writetitle(os.path.basename(fitsfile))
 
-            fitshead, fitsextension = os.path.splitext(fitsfile)
+            fitshead, _ = os.path.splitext(fitsfile)
             image.writeinfo([odate], colour=(255, 100, 0))
             image.tonet('{0}.png'.format(fitshead))
         self.update_progress("Photometry done!", 1)

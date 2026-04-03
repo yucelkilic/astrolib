@@ -67,8 +67,5 @@ else:
 
 if xy:
     print("X: {0}, Y: {1}".format(xy[0], xy[1]))
-    # print("cX: {0}, cY: {1}".format(c_x, c_y))
-    # print("dX: {0}, dY: {1}".format(float(xy[0] - c_x),
-    # float(xy[1] - c_y)))
     print("{0}:{1}".format(dra.to(u.arcsec).value,
                            ddec.to(u.arcsec).value))
