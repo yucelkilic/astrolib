@@ -138,6 +138,34 @@ NET {6}""".format(code, observer, observer, tel,
 
         return True
 
+    def _get_image_data(self):
+        """
+        Return the first usable 2D image plane from the FITS HDU list.
+        Some FITS files keep science data in extensions while primary HDU is empty.
+        """
+        for hdu in self.hdu:
+            data = getattr(hdu, "data", None)
+            if data is None:
+                continue
+
+            array = np.asarray(data)
+            if array.size == 0:
+                continue
+
+            # Collapse higher dimensional cubes to a 2D plane for plotting.
+            while array.ndim > 2:
+                array = array[0]
+
+            if array.ndim != 2:
+                continue
+
+            try:
+                return array.astype(float)
+            except Exception:
+                continue
+
+        raise ValueError("No usable image data found in FITS HDUs")
+
 
     def detect_sources(self, plot=False, max_sources=None, catalog_output=None):
         """
@@ -159,7 +187,7 @@ NET {6}""".format(code, observer, observer, tel,
 
         if plot is True:
             from .visuals import StarPlot
-            data = self.hdu[0].data.astype(float)
+            data = self._get_image_data()
             splt = StarPlot()
 
             splt.star_plot(data, objects)
@@ -172,9 +200,8 @@ NET {6}""".format(code, observer, observer, tel,
         It detects sources on FITS image with sep module.
         @return: astropy.table
         """
-        data = self.hdu[0].data.astype(float)
-        bkg = sep.Background(data)
-        data_sub = data - bkg
+        # Validate that file has at least one usable image plane (primary or extension HDU).
+        self._get_image_data()
 
         sew = sewpy.SEW(params=['FLAGS', 'X_IMAGE', 'Y_IMAGE', 'ALPHA_J2000', 'DELTA_J2000', 'FLUX_AUTO', 'FLUXERR_AUTO',
                                   'FLUX_APER', 'FLUXERR_APER', 'FLUX_PETRO', 'FLUXERR_PETRO', 'FLUX_MAX', 'XPEAK_IMAGE', 'YPEAK_IMAGE', 'MAG_APER', 'MAGERR_APER',
@@ -1484,7 +1511,7 @@ class RedOps:
             # Extract RA and DEC coordinates from header
             try:
                 fltr = fo.get_header('filter')
-            except:
+            except Exception:
                 continue
 
             if fltr in filter:
