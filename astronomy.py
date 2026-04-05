@@ -609,7 +609,8 @@ class AstCalc:
                     dec=None,
                     ra_keyword="objctra",
                     dec_keyword="objctdec",
-                    overwrite=False):
+                    overwrite=False,
+                    solver_bin="solve-field"):
 
         """
         The astrometry engine will take any image and return
@@ -651,10 +652,11 @@ class AstCalc:
                 ra = ra.replace(" ", ":")
                 dec = dec.replace(" ", ":")
                 
-            system(("solve-field --no-plots "
-                    "--no-verify --tweak-order {0} "
-                    "--downsample {1} --overwrite --radius {2} --no-tweak "
-                    "--ra {3} --dec {4} {5}").format(tweak_order,
+            system(("{0} --no-plots "
+                    "--no-verify --tweak-order {1} "
+                    "--downsample {2} --overwrite --radius {3} --no-tweak "
+                    "--ra {4} --dec {5} {6}").format(solver_bin,
+                                                     tweak_order,
                                                      downsample,
                                                      radius,
                                                      ra,
@@ -674,7 +676,7 @@ class AstCalc:
 
             if not path.exists(root + '.new'):
                 print(image_path + ' cannot be solved!')
-                return(False)
+                return False
             else:
                 if overwrite is False:
                     system("mv {0}.new {0}_new.fits".format(root))
@@ -684,10 +686,11 @@ class AstCalc:
                     system("mv {0}.new {0}.fits".format(root))
                     print("{0}.new --> {0}.fits: solved!".format(root))
 
-                return(True)
-        
+                return True
+
         except Exception as e:
             print(e)
+            return None
 
     def std2equ(self, ra0, dec0, xx, yy):
 
