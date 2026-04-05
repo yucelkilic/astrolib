@@ -610,7 +610,8 @@ class AstCalc:
                     ra_keyword="objctra",
                     dec_keyword="objctdec",
                     overwrite=False,
-                    solver_bin="solve-field"):
+                    solver_bin="solve-field",
+                    index_dir=None):
 
         """
         The astrometry engine will take any image and return
@@ -638,55 +639,79 @@ class AstCalc:
         """
     
         try:
+            fo = FitsOps(image_path)
             if ra is None and dec is None:
-                fo = FitsOps(image_path)
                 ra = fo.get_header(ra_keyword)
                 dec = fo.get_header(dec_keyword)
-                ra = ra.strip()
-                dec = dec.strip()
-                ra = ra.replace(" ", ":")
-                dec = dec.replace(" ", ":")
-            else:
-                ra = ra.strip()
-                dec = dec.strip()
-                ra = ra.replace(" ", ":")
-                dec = dec.replace(" ", ":")
-                
-            system(("{0} --no-plots "
-                    "--no-verify --tweak-order {1} "
-                    "--downsample {2} --overwrite --radius {3} --no-tweak "
-                    "--ra {4} --dec {5} {6}").format(solver_bin,
-                                                     tweak_order,
-                                                     downsample,
-                                                     radius,
-                                                     ra,
-                                                     dec,
-                                                     image_path))
-            # Cleaning
+            ra = ra.strip().replace(" ", ":")
+            dec = dec.strip().replace(" ", ":")
+
+            # Determine pixel scale for scale-constrained solving (PhoPS approach).
+            # Tries SCALE*XBINNING, then CD matrix, then CDELT — falls back to
+            # unconstrained if none are available.
+            pixel_scale = None
+            try:
+                scale_kw = fo.get_header("SCALE")
+                if scale_kw:
+                    binning = fo.get_header("XBINNING") or 1
+                    pixel_scale = float(scale_kw) * float(binning)
+            except Exception:
+                pass
+            if pixel_scale is None:
+                try:
+                    cd1_1 = fo.get_header("CD1_1")
+                    cd1_2 = fo.get_header("CD1_2") or 0
+                    if cd1_1:
+                        pixel_scale = (float(cd1_1) ** 2 + float(cd1_2) ** 2) ** 0.5 * 3600
+                except Exception:
+                    pass
+            if pixel_scale is None:
+                try:
+                    cdelt = fo.get_header("CDELT1") or fo.get_header("CDELT2")
+                    if cdelt:
+                        pixel_scale = abs(float(cdelt)) * 3600
+                except Exception:
+                    pass
+
             if ".gz" in image_path:
                 root = '.'.join(image_path.split('.')[:-2])
             else:
                 root, _ = path.splitext(image_path)
+            output_fits = root + "_new.fits" if not overwrite else root + ".fits"
 
-            system(("rm -rf {0}-indx.png {0}-indx.xyls "
-                    "{0}-ngc.png {0}-objs.png "
-                    "{0}.axy {0}.corr "
-                    "{0}.match {0}.rdls "
-                    "{0}.solved {0}.wcs").format(root))
+            # Build solve-field command following PhoPS conventions:
+            # explicit output file, scale constraints when available, and
+            # all temporary outputs suppressed inline instead of post-cleanup.
+            cmd = [
+                solver_bin,
+                image_path,
+                "--no-plots", "--overwrite",
+                "--new-fits", output_fits,
+                "--ra", ra, "--dec", dec, "--radius", str(radius),
+                "--solved", "none",
+                "--corr", "none",
+                "--rdls", "none",
+                "--match", "none",
+                "--index-xyls", "none",
+                "--axy", "none",
+            ]
+            if pixel_scale is not None:
+                cmd += [
+                    "--scale-units", "arcsecperpix",
+                    "--scale-low", str(round(pixel_scale * 0.7, 4)),
+                    "--scale-high", str(round(pixel_scale * 1.4, 4)),
+                ]
+            if index_dir:
+                cmd += ["--index-dir", str(index_dir)]
 
-            if not path.exists(root + '.new'):
+            system(" ".join(str(c) for c in cmd))
+
+            if not path.exists(output_fits):
                 print(image_path + ' cannot be solved!')
                 return False
-            else:
-                if overwrite is False:
-                    system("mv {0}.new {0}_new.fits".format(root))
-                    print("{0}.fits --> {0}_new.fits: solved!".format(root))
-                elif overwrite is True:
-                    print("Overwrite is True!")
-                    system("mv {0}.new {0}.fits".format(root))
-                    print("{0}.new --> {0}.fits: solved!".format(root))
 
-                return True
+            print("{0} --> {1}: solved!".format(path.basename(image_path), path.basename(output_fits)))
+            return True
 
         except Exception as e:
             print(e)
