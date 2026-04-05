@@ -611,7 +611,8 @@ class AstCalc:
                     dec_keyword="objctdec",
                     overwrite=False,
                     solver_bin="solve-field",
-                    index_dir=None):
+                    index_dir=None,
+                    verbose=False):
 
         """
         The astrometry engine will take any image and return
@@ -704,13 +705,16 @@ class AstCalc:
             if index_dir:
                 cmd += ["--index-dir", str(index_dir)]
 
-            system(" ".join(str(c) for c in cmd))
+            import subprocess as _sp
+            _sp.run(
+                [str(c) for c in cmd],
+                stdout=None if verbose else _sp.DEVNULL,
+                stderr=None if verbose else _sp.DEVNULL,
+            )
 
             if not path.exists(output_fits):
-                print(image_path + ' cannot be solved!')
                 return False
 
-            print("{0} --> {1}: solved!".format(path.basename(image_path), path.basename(output_fits)))
             return True
 
         except Exception as e:
