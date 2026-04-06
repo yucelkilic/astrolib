@@ -612,7 +612,8 @@ class AstCalc:
                     overwrite=False,
                     solver_bin="solve-field",
                     index_dir=None,
-                    verbose=False):
+                    verbose=False,
+                    timeout=None):
 
         """
         The astrometry engine will take any image and return
@@ -706,11 +707,19 @@ class AstCalc:
                 cmd += ["--index-dir", str(index_dir)]
 
             import subprocess as _sp
-            _sp.run(
-                [str(c) for c in cmd],
-                stdout=None if verbose else _sp.DEVNULL,
-                stderr=None if verbose else _sp.DEVNULL,
-            )
+            try:
+                _sp.run(
+                    [str(c) for c in cmd],
+                    stdout=None if verbose else _sp.DEVNULL,
+                    stderr=None if verbose else _sp.DEVNULL,
+                    timeout=timeout,
+                )
+            except _sp.TimeoutExpired:
+                import logging as _log
+                _log.warning(
+                    "solve_field: timed out after %ss for %s", timeout, image_path
+                )
+                return "timeout"
 
             if not path.exists(output_fits):
                 return False
