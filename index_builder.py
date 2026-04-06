@@ -82,6 +82,17 @@ class GaiaIndexBuilder:
 
     # ── Public API ────────────────────────────────────────────────────────────
 
+    def is_cached(self, ra: float, dec: float, obs_time=None) -> bool:
+        """
+        Return True if a valid cached index already exists for this position.
+
+        This is a read-only pre-flight check; it does not build anything.
+        Use it to report progress before calling :meth:`ensure_index`.
+        """
+        return self._cache_hit(ra, dec, obs_time) and bool(
+            self._index_files_for(ra, dec)
+        )
+
     def ensure_index(self, ra: float, dec: float, obs_time=None) -> bool:
         """
         Ensure astrometry.net index files exist for the given sky position.
