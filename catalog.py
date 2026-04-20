@@ -1,7 +1,6 @@
 import astropy.coordinates as coord
 from astropy.table import Table
 from astropy import units as u
-import astropy.io.fits as fits
 from astropy import stats
 from astropy.io import ascii
 from astroquery.jplhorizons import Horizons
@@ -10,7 +9,6 @@ from .astronomy import FitsOps
 from .astronomy import TimeOps
 from .astronomy import AstCalc
 import numpy as np
-import sep
 from os import system
 import math
 
@@ -20,7 +18,7 @@ from astroquery.vizier import Vizier
 import matplotlib.pyplot as plt
 from sklearn.impute import SimpleImputer
 
-from sklearn import linear_model, datasets
+from sklearn import linear_model
 from pylab import rcParams
 import os
 

@@ -238,7 +238,7 @@ class StarPlot:
 
         """
         Plot light curve of photometry result.
-        @param result_file_path: Result file path
+        @param result_file_path: PhotPoint file path
         @type result_file_path: path
         @param xcol: X-axis data for plotting
         @type xcol: array
@@ -724,7 +724,6 @@ class StarPlot:
             'A table object or file'
         """
 
-        from .catalog import Query
 
         rcParams['figure.figsize'] = [12., 12.]
         # rcParams.update({'font.size': 10})

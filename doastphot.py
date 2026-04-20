@@ -20,7 +20,7 @@ filter = sys.argv[2]
 if filter != "--plot-lc":
     target = os.path.basename(fitsdir).split('.')[0]
 
-    if not "--skip-calib" in sys.argv:
+    if "--skip-calib" not in sys.argv:
         print("Ön indirgeme başladı!")
         ro = astronomy.RedOps()
         ro.ccdproc(fitsdir, filter=filter)
@@ -28,7 +28,7 @@ if filter != "--plot-lc":
     # astrometry
     # Solve field with astrometry.net
     # Please provide image path, so ./ is important!
-    if not "--skip-astrometry" in sys.argv:
+    if "--skip-astrometry" not in sys.argv:
         ac = astronomy.AstCalc()
         print("Astrometry başladı!")
         fitsfiles = glob.glob("./atmp/bf_*.fit?")
@@ -36,7 +36,7 @@ if filter != "--plot-lc":
         for fitsfile in fitsfiles:
             ac.solve_field(fitsfile)
     # photometry
-    if not "--skip-photometry" in sys.argv:
+    if "--skip-photometry" not in sys.argv:
         ap = photometry.PhotOps()
         ap.asteroids_phot("./atmp/bf_*new.fits", multi_object=True, radius=11)
         # For plotting ligt curve of results.

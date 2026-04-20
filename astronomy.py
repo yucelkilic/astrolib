@@ -8,7 +8,7 @@ from astropy.wcs import WCS
 from astropy.io import fits
 from astropy.time import Time
 from astropy.coordinates import get_body_barycentric
-from astropy.table import Table, Column
+from astropy.table import Table
 from ccdproc import ImageFileCollection
 import ccdproc
 
@@ -16,7 +16,7 @@ from datetime import datetime
 from datetime import timedelta
 
 import math
-from os import path, system, getcwd
+from os import path, system
 import numpy as np
 import pandas as pd
 from pathlib import Path

@@ -13,13 +13,12 @@ from .astronomy import FitsOps
 from .astronomy import AstCalc
 from datetime import datetime
 from astropy.table import Table
-import datetime as dt
 from termcolor import colored
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.header import Header
-import requests, json
+import requests
 import geopandas as gpd
 
 

@@ -12,7 +12,6 @@ from astropy.time import TimeDelta
 import astropy.units as u
 from astroplan import Observer
 import sqlite3
-from sqlite3 import Error
 
 
 class Weather:
@@ -426,7 +425,7 @@ class Weather:
                 print(dt, dark_hours, bad_time, weather_status)
                 out.write("{0} {1} {2}\n".format(dt,
                                                  dark_hours,
-                                                 bad_time, weather_status))
+                                                 bad_time, ))
 
         print("Long term bad weather report has been written "
               "to {0}_bad_weather_report-{1}_{2}.txt".format(

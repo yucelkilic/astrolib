@@ -1,10 +1,8 @@
 from astropy.coordinates import SkyCoord
 from astropy import units as u
 from astrolib import astronomy
-import glob
 import sys
 import os
-import numpy as np
 
 
 # Görüntünün yolu
