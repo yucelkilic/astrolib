@@ -616,7 +616,8 @@ class AstCalc:
                     solver_bin="solve-field",
                     index_dir=None,
                     verbose=False,
-                    timeout=None):
+                    timeout=None,
+                    **kwargs):
 
         """
         The astrometry engine will take any image and return
@@ -710,19 +711,35 @@ class AstCalc:
                 cmd += ["--index-dir", str(index_dir)]
 
             import subprocess as _sp
+            import threading as _threading
+            stop_event = kwargs.get("stop_event") if kwargs else None
             try:
-                _sp.run(
+                _proc = _sp.Popen(
                     [str(c) for c in cmd],
                     stdout=None if verbose else _sp.DEVNULL,
                     stderr=None if verbose else _sp.DEVNULL,
-                    timeout=timeout,
                 )
-            except _sp.TimeoutExpired:
+                deadline = (time.time() + timeout) if timeout else None
+                while True:
+                    try:
+                        _proc.wait(timeout=0.5)
+                        break
+                    except _sp.TimeoutExpired:
+                        pass
+                    if stop_event is not None and stop_event.is_set():
+                        _proc.kill()
+                        _proc.wait()
+                        return "cancelled"
+                    if deadline is not None and time.time() >= deadline:
+                        _proc.kill()
+                        _proc.wait()
+                        import logging as _log
+                        _log.warning("solve_field: timed out after %ss for %s", timeout, image_path)
+                        return "timeout"
+            except Exception as _proc_err:
                 import logging as _log
-                _log.warning(
-                    "solve_field: timed out after %ss for %s", timeout, image_path
-                )
-                return "timeout"
+                _log.warning("solve_field: subprocess error for %s: %s", image_path, _proc_err)
+                return None
 
             if not path.exists(output_fits):
                 return False
