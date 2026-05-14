@@ -223,6 +223,7 @@ class GaiaIndexBuilder:
         suffix = f"{int(ra)}_{int(dec)}"
         patch_path = self.index_dir / f"gaia_patch_{suffix}.fits"
         data.write(str(patch_path), overwrite=True)
+        patch_path.chmod(0o664)
         log.info("GaiaIndexBuilder: patch written — %s (%d stars)", patch_path.name, len(data))
         return patch_path
 
@@ -322,6 +323,7 @@ class GaiaIndexBuilder:
                         result.stderr[:400],
                     )
                 elif index_path.exists():
+                    index_path.chmod(0o664)
                     built += 1
 
         for tile_path, _ in tiles:
