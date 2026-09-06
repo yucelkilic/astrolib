@@ -90,6 +90,28 @@ NET {6}""".format(code, observer, observer, tel,
 
         return(head)
 
+    def _image_axis_from_shape(self, key):
+        key = str(key or "").strip().upper()
+        if key not in {"NAXIS1", "NAXIS2"}:
+            return False
+
+        for hdu in self.hdu:
+            try:
+                shape = getattr(hdu, "shape", None)
+            except Exception:
+                shape = None
+            if not shape:
+                try:
+                    data = getattr(hdu, "data", None)
+                    shape = getattr(data, "shape", None)
+                except Exception:
+                    shape = None
+            if not shape or len(shape) < 2:
+                continue
+            return shape[-1] if key == "NAXIS1" else shape[-2]
+
+        return False
+
     def get_header(self, key):
 
         """
@@ -100,13 +122,36 @@ NET {6}""".format(code, observer, observer, tel,
         @return: str
         """
 
-        try:
-            header_key = self.hdu[0].header[key]
-            ret = header_key
-        except Exception:
-            ret = False
+        key = str(key or "").strip()
+        if not key:
+            return False
 
-        return ret
+        first_found = None
+        has_found = False
+        try:
+            iterator = iter(self.hdu)
+        except Exception:
+            iterator = []
+
+        for hdu in iterator:
+            try:
+                header = hdu.header
+                if key not in header:
+                    continue
+                value = header[key]
+            except Exception:
+                continue
+
+            if not has_found:
+                first_found = value
+                has_found = True
+            if value is not None and str(value).strip():
+                return value
+
+        if has_found:
+            return first_found
+
+        return self._image_axis_from_shape(key)
 
     def update_header(self, key, value):
 
